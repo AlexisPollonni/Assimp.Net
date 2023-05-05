@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net6.0;net7.0;netstandard2.1</TargetFrameworks>
+    <TargetFramework>net7.0</TargetFramework>
     <LangVersion>11</LangVersion>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -9,12 +9,11 @@
     <AssemblyOriginatorKeyFile Condition=" '$(MSBuildRuntimeType)' != 'Core'">AssimpKey.snk</AssemblyOriginatorKeyFile>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>Nicholas Woodfield and Stirling Labs' Team</Authors>
-    <Company>Stirling Labs</Company>
-    <PackageLicenseFile>License.txt</PackageLicenseFile>
+<!--    <PackageLicenseFile>../License.txt</PackageLicenseFile>-->
     <Copyright>Portions Copyright © 2012-2020 Nicholas Woodfield © 2022-2023 Stirling Labs</Copyright>
-    <PackageIcon>logo.png</PackageIcon>
-    <PackageProjectUrl>https://github.com/StirlingLabsStirlingLabs/Assimp.Net</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/StirlingLabs/Assimp.Net.git</RepositoryUrl>
+<!--    <PackageIcon>logo.png</PackageIcon>-->
+    <PackageProjectUrl>https://github.com/AlexisPollonni/Assimp.Net</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/AlexisPollonni/Assimp.Net.git</RepositoryUrl>
     <RepositoryType>Git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <IncludeSymbols>true</IncludeSymbols>
@@ -22,35 +21,21 @@
     <Description>A .NET Wrapper for the Open Asset Import (Assimp) library. The library is able to import dozens of different 3D model formats (e.g. OBJ, FBX, GLTF, Collada) and export to several formats (e.g. OBJ, GLTF, Collada). This release targets version 5.0.1 of the native library.</Description>
     <PackageTags>Model 3D Graphics Assimp Mesh Importers Content Assets FBX Collada GLTF OBJ 3DS DXF</PackageTags>
     <RootNamespace>Assimp</RootNamespace>
-    <AssemblyName>StirlingLabs.Assimp.Net</AssemblyName>
+    <AssemblyName>Assimp.Net</AssemblyName>
     <Title>Assimp.Net</Title>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(CI)'!=''">
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageOutputPath>../artifacts</PackageOutputPath>
+    <PackageOutputPath>../../artifacts</PackageOutputPath>
   </PropertyGroup>
-
-  <ImportGroup>
-    <Import Project="../Version.proj" />
-  </ImportGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <DocumentationFile>bin\Release\$(TargetFramework)\AssimpNet.xml</DocumentationFile>
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
-
-  <Target Name="ApplyGitInfoBeforeRestore" DependsOnTargets="ApplyGitInfo" AfterTargets="ApplyGitInfo">
-    <Message Importance="high" Text="ApplyGitInfoBeforeRestore" />
-  </Target>
-
-  <Target Name="FixRuntimePackageVersions" DependsOnTargets="ApplyGitInfoBeforeRestore" BeforeTargets="CollectPackageReferences" AfterTargets="ApplyGitInfoBeforeRestore">
-    <ItemGroup>
-      <PackageReference Update="@(PackageReference)" Version="[*,$(_PackageVersion)]" Condition="$([MSBuild]::ValueOrDefault('%(PackageReference.Identity)','').StartsWith('StirlingLabs.assimp.native'))" />
-    </ItemGroup>
-  </Target>
-
+  
   <ItemGroup>
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
     <PackageReference Include="StirlingLabs.assimp.native.linux-x64" Version="*" />
