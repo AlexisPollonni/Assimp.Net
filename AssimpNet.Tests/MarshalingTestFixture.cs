@@ -20,80 +20,83 @@
 * THE SOFTWARE.
 */
 
-using System;
-using System.IO;
-using System.Threading;
-using System.Collections.Generic;
-using Assimp.Configs;
-using Assimp.Unmanaged;
 using NUnit.Framework;
 
-namespace Assimp.Test
+namespace Assimp.Test;
+
+[TestFixture]
+public class MarshalingTestFixture
 {
-    [TestFixture]
-    public class MarshalingTestFixture
+    [Test]
+    public void TestMarshal_MeshMorphAnimationChannel()
     {
-        [Test]
-        public void TestMarshal_MeshMorphAnimationChannel()
+        var morph = new MeshMorphAnimationChannel
         {
-            MeshMorphAnimationChannel morph = new MeshMorphAnimationChannel();
-            morph.Name = "TestMorph";
+            Name = "TestMorph"
+        };
 
-            MeshMorphKey morphKey1 = new MeshMorphKey();
-            morphKey1.Time = 0.0f;
-            morphKey1.Values.Add(1);
-            morphKey1.Values.Add(2);
-            morphKey1.Weights.Add(0.5);
-            morphKey1.Weights.Add(1.0);
-
-            MeshMorphKey morphKey2 = new MeshMorphKey();
-            morphKey2.Time = 1.0f;
-            morphKey2.Values.Add(1);
-            morphKey2.Values.Add(2);
-            morphKey2.Weights.Add(.25);
-            morphKey2.Weights.Add(.25);
-
-            morph.MeshMorphKeys.Add(morphKey1);
-            morph.MeshMorphKeys.Add(morphKey2);
-
-            Animation anim = new Animation();
-            anim.MeshMorphAnimationChannels.Add(morph);
-
-            Scene scene = new Scene();
-            scene.Animations.Add(anim);
-
-            IntPtr scenePtr = Scene.ToUnmanagedScene(scene);
-            Assert.IsTrue(scenePtr != IntPtr.Zero);
-
-            Scene scene2 = Scene.FromUnmanagedScene(scenePtr);
-            Scene.FreeUnmanagedScene(scenePtr);
-
-            Assert.IsTrue(scene2.AnimationCount == 1);
-
-            Animation otherAnim = scene2.Animations[0];
-            Assert.IsTrue(otherAnim.MeshMorphAnimationChannelCount == 1);
-
-            MeshMorphAnimationChannel otherMorph = otherAnim.MeshMorphAnimationChannels[0];
-
-            Assert.IsTrue(otherMorph.Name == morph.Name);
-            Assert.IsTrue(otherMorph.MeshMorphKeyCount== 2);
-
-            CompareMorphKey(otherMorph.MeshMorphKeys[0], morph.MeshMorphKeys[0]);
-            CompareMorphKey(otherMorph.MeshMorphKeys[1], morph.MeshMorphKeys[1]);
-        }
-
-        private void CompareMorphKey(MeshMorphKey key1, MeshMorphKey key2)
+        var morphKey1 = new MeshMorphKey
         {
-            TestHelper.AssertEquals(key1.Time, key2.Time);
-            Assert.IsTrue(key1.Values.Count == key1.Weights.Count);
-            Assert.IsTrue(key2.Values.Count == key2.Weights.Count);
-            Assert.IsTrue(key1.Values.Count == key2.Values.Count);
+            Time = 0.0f
+        };
+        morphKey1.Values.Add(1);
+        morphKey1.Values.Add(2);
+        morphKey1.Weights.Add(0.5);
+        morphKey1.Weights.Add(1.0);
 
-            for(int i = 0; i < key1.Values.Count; i++)
-            {
-                TestHelper.AssertEquals(key1.Weights[i], key2.Weights[i]);
-                Assert.IsTrue(key1.Values[i] == key2.Values[i]);
-            }
+        var morphKey2 = new MeshMorphKey
+        {
+            Time = 1.0f
+        };
+        morphKey2.Values.Add(1);
+        morphKey2.Values.Add(2);
+        morphKey2.Weights.Add(.25);
+        morphKey2.Weights.Add(.25);
+
+        morph.MeshMorphKeys.Add(morphKey1);
+        morph.MeshMorphKeys.Add(morphKey2);
+
+        var anim = new Animation();
+        anim.MeshMorphAnimationChannels.Add(morph);
+
+        var scene = new Scene();
+        scene.Animations.Add(anim);
+
+        var scenePtr = Scene.ToUnmanagedScene(scene);
+        Assert.That(scenePtr, Is.Not.EqualTo(nint.Zero));
+
+        var scene2 = Scene.FromUnmanagedScene(scenePtr);
+        Scene.FreeUnmanagedScene(scenePtr);
+
+        Assert.That(scene2.AnimationCount, Is.EqualTo(1));
+
+        var otherAnim = scene2.Animations[0];
+        Assert.That(otherAnim.MeshMorphAnimationChannelCount, Is.EqualTo(1));
+
+        var otherMorph = otherAnim.MeshMorphAnimationChannels[0];
+        Assert.Multiple(() =>
+        {
+            Assert.That(otherMorph.Name, Is.EqualTo(morph.Name));
+            Assert.That(otherMorph.MeshMorphKeyCount, Is.EqualTo(2));
+        });
+        CompareMorphKey(otherMorph.MeshMorphKeys[0], morph.MeshMorphKeys[0]);
+        CompareMorphKey(otherMorph.MeshMorphKeys[1], morph.MeshMorphKeys[1]);
+    }
+
+    private void CompareMorphKey(MeshMorphKey key1, MeshMorphKey key2)
+    {
+        TestHelper.AssertEquals(key1.Time, key2.Time);
+        Assert.Multiple(() =>
+        {
+            Assert.That(key1.Values, Has.Count.EqualTo(key1.Weights.Count));
+            Assert.That(key2.Values, Has.Count.EqualTo(key2.Weights.Count));
+        });
+        Assert.That(key1.Values, Has.Count.EqualTo(key2.Values.Count));
+
+        for(var i = 0; i < key1.Values.Count; i++)
+        {
+            TestHelper.AssertEquals(key1.Weights[i], key2.Weights[i]);
+            Assert.IsTrue(key1.Values[i] == key2.Values[i]);
         }
     }
 }

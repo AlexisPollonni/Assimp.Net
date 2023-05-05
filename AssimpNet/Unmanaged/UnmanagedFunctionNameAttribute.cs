@@ -21,38 +21,26 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Runtime.InteropServices;
 
-namespace Assimp.Unmanaged
+namespace Assimp.Unmanaged;
+
+/// <summary>
+/// An attribute that represents the name of an unmanaged function to import.
+/// </summary>
+[AttributeUsage(AttributeTargets.Delegate)]
+public class UnmanagedFunctionNameAttribute : Attribute
 {
     /// <summary>
-    /// An attribute that represents the name of an unmanaged function to import.
+    /// Name of the unmanaged function.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Delegate)]
-    public class UnmanagedFunctionNameAttribute : Attribute
+    public string UnmanagedFunctionName { get; }
+
+    /// <summary>
+    /// Constructs a new <see cref="UnmanagedFunctionName"/>.
+    /// </summary>
+    /// <param name="unmanagedFunctionName">Name of the function.</param>
+    public UnmanagedFunctionNameAttribute(string unmanagedFunctionName)
     {
-        private String m_unmanagedFunctionName;
-
-        /// <summary>
-        /// Name of the unmanaged function.
-        /// </summary>
-        public String UnmanagedFunctionName
-        {
-            get
-            {
-                return m_unmanagedFunctionName;
-            }
-        }
-
-        /// <summary>
-        /// Constructs a new <see cref="UnmanagedFunctionName"/>.
-        /// </summary>
-        /// <param name="unmanagedFunctionName">Name of the function.</param>
-        public UnmanagedFunctionNameAttribute(String unmanagedFunctionName)
-        {
-            m_unmanagedFunctionName = unmanagedFunctionName;
-        }
+        UnmanagedFunctionName = unmanagedFunctionName;
     }
 }

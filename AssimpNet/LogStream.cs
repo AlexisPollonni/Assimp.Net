@@ -28,381 +28,344 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Assimp.Unmanaged;
 
-namespace Assimp
+namespace Assimp;
+
+/// <summary>
+/// Callback delegate for Assimp's LogStream.
+/// </summary>
+/// <param name="msg">Log message</param>
+/// <param name="userData">Supplied user data</param>
+public delegate void LoggingCallback(string msg, string userData);
+
+/// <summary>
+/// Represents a log stream, which receives all log messages and streams them somewhere.
+/// </summary>
+[DebuggerDisplay("IsAttached = {IsAttached}")]
+public class LogStream : IDisposable
 {
-  /// <summary>
-  /// Callback delegate for Assimp's LogStream.
-  /// </summary>
-  /// <param name="msg">Log message</param>
-  /// <param name="userData">Supplied user data</param>
-  public delegate void LoggingCallback(String msg, String userData);
+  private static readonly AiLogStreamCallback s_dlgStaticOnLogStreamCallback = StaticOnAiLogStreamCallback;
+    
+  private static ImmutableList<LogStream> s_attachedLogStreams = ImmutableList<LogStream>.Empty;
+    
+  private static readonly ThreadLocal<HashSet<LogStream>> s_tlsLogStreams = new(() => new());
 
+  private static HashSet<LogStream> s_logStreams => s_tlsLogStreams.Value;
+    
+  private static readonly unsafe AiLogStream* s_logstreamPtr;
+
+  private static int s_instanceCounter;
+
+  private LoggingCallback m_logCallback;
+
+  protected string m_userData;
+
+  private int m_isDisposedValue;
+
+  private int m_isAttachedValue;
+
+  public static int AttachedLogStreamCount => s_attachedLogStreams.Count;
+    
   /// <summary>
-  /// Represents a log stream, which receives all log messages and streams them somewhere.
+  /// Gets or sets, if verbose logging is enabled globally.
   /// </summary>
-  [DebuggerDisplay("IsAttached = {IsAttached}")]
-  public class LogStream : IDisposable
+  public static bool IsVerboseLoggingEnabled
   {
-    private static readonly AiLogStreamCallback s_dlgStaticOnLogStreamCallback = StaticOnAiLogStreamCallback;
-    
-    private static ImmutableList<LogStream> s_attachedLogStreams = ImmutableList<LogStream>.Empty;
-    
-    private static ThreadLocal<HashSet<LogStream>> s_tlsLogStreams = new(() => new());
+    get => AssimpLibrary.Instance.GetVerboseLoggingEnabled();
+    set => AssimpLibrary.Instance.EnableVerboseLogging(value);
+  }
 
-    private static HashSet<LogStream> s_logStreams => s_tlsLogStreams.Value;
-    
-    private static unsafe AiLogStream* s_logstreamPtr;
+  /// <summary>
+  /// Gets or sets the user data to be passed to the callback.
+  /// </summary>
+  public string UserData
+  {
+    get => m_userData;
+    set => m_userData = value;
+  }
 
-    private static int s_instanceCounter = 0;
+  /// <summary>
+  /// Gets whether the logstream has been disposed or not.
+  /// </summary>
+  public bool IsDisposed => Interlocked.CompareExchange(ref m_isDisposedValue, 0, 0) != 0;
 
-    private LoggingCallback m_logCallback;
-
-    protected String m_userData;
-
-    private int m_isDisposedValue;
-
-    private int m_isAttachedValue;
-
-    public static int AttachedLogStreamCount => s_attachedLogStreams.Count;
-    
-    /// <summary>
-    /// Gets or sets, if verbose logging is enabled globally.
-    /// </summary>
-    public static bool IsVerboseLoggingEnabled
-    {
-      get
-      {
-        return AssimpLibrary.Instance.GetVerboseLoggingEnabled();
-      }
-      set
-      {
-        AssimpLibrary.Instance.EnableVerboseLogging(value);
-      }
-    }
-
-    /// <summary>
-    /// Gets or sets the user data to be passed to the callback.
-    /// </summary>
-    public String UserData
-    {
-      get
-      {
-        return m_userData;
-      }
-      set
-      {
-        m_userData = value;
-      }
-    }
-
-    /// <summary>
-    /// Gets whether the logstream has been disposed or not.
-    /// </summary>
-    public bool IsDisposed
-    {
-      get
-      {
-        return Interlocked.CompareExchange(ref m_isDisposedValue, 0, 0) != 0;
-      }
-    }
-
-    /// <summary>
-    /// Gets whether or not the logstream is currently attached to the library.
-    /// </summary>
-    public bool IsAttached
-    {
-      get
-      {
-        return Interlocked.CompareExchange(ref m_isAttachedValue, 0, 0) != 0;
-      }
-    }
+  /// <summary>
+  /// Gets whether or not the logstream is currently attached to the library.
+  /// </summary>
+  public bool IsAttached => Interlocked.CompareExchange(ref m_isAttachedValue, 0, 0) != 0;
 
 
-    public bool IsAttachedOnThread {
-      get
-      {
-        return s_logStreams.Contains(this);
-      }
-    }
+  public bool IsAttachedOnThread => s_logStreams.Contains(this);
 
-    /// <summary>
-    /// Static constructor.
-    /// </summary>
-    static unsafe LogStream()
-    {
-      AssimpLibrary.Instance.LibraryFreed += AssimpLibraryFreed;
-      s_logstreamPtr = (AiLogStream*)MemoryHelper.AllocateMemory(MemoryHelper.SizeOf<AiLogStream>());
-      s_logstreamPtr->UserData = default;
-      s_logstreamPtr->Callback = Marshal.GetFunctionPointerForDelegate(s_dlgStaticOnLogStreamCallback);
-    }
+  /// <summary>
+  /// Static constructor.
+  /// </summary>
+  static unsafe LogStream()
+  {
+    AssimpLibrary.Instance.LibraryFreed += AssimpLibraryFreed;
+    s_logstreamPtr = (AiLogStream*)MemoryHelper.AllocateMemory(MemoryHelper.SizeOf<AiLogStream>());
+    s_logstreamPtr->UserData = default;
+    s_logstreamPtr->Callback = Marshal.GetFunctionPointerForDelegate(s_dlgStaticOnLogStreamCallback);
+  }
 
-    /// <summary>
-    /// Constructs a new LogStream.
-    /// </summary>
-    /// <param name="initialize">
-    /// Whether to immediately initialize the system by setting up native pointers. Set this to
-    /// false if you want to manually initialize and use custom function pointers for advanced use cases.
-    /// </param>
-    protected LogStream(bool initialize = true) : this("", initialize) { }
+  /// <summary>
+  /// Constructs a new LogStream.
+  /// </summary>
+  /// <param name="initialize">
+  /// Whether to immediately initialize the system by setting up native pointers. Set this to
+  /// false if you want to manually initialize and use custom function pointers for advanced use cases.
+  /// </param>
+  protected LogStream(bool initialize = true) : this("", initialize) { }
 
-    /// <summary>
-    /// Constructs a new LogStream.
-    /// </summary>
-    /// <param name="userData">User-supplied data</param>
-    /// <param name="initialize">True if initialize should be immediately called with the default callbacks. Set this to false
-    /// if your subclass requires a different way to setup the function pointers.</param>
-    protected LogStream(String userData, bool initialize = true)
-    {
-      if (initialize)
-        Initialize(null, userData);
-    }
+  /// <summary>
+  /// Constructs a new LogStream.
+  /// </summary>
+  /// <param name="userData">User-supplied data</param>
+  /// <param name="initialize">True if initialize should be immediately called with the default callbacks. Set this to false
+  /// if your subclass requires a different way to setup the function pointers.</param>
+  protected LogStream(string userData, bool initialize = true)
+  {
+    if (initialize)
+      Initialize(null, userData);
+  }
 
-    /// <summary>
-    /// Constructs a new LogStream.
-    /// </summary>
-    /// <param name="callback">Logging callback that is called when messages are received by the log stream.</param>
-    public LogStream(LoggingCallback callback)
-    {
-      Initialize(callback);
-    }
+  /// <summary>
+  /// Constructs a new LogStream.
+  /// </summary>
+  /// <param name="callback">Logging callback that is called when messages are received by the log stream.</param>
+  public LogStream(LoggingCallback callback)
+  {
+    Initialize(callback);
+  }
 
-    /// <summary>
-    /// Constructs a new LogStream.
-    /// </summary>
-    /// <param name="callback">Logging callback that is called when messages are received by the log stream.</param>
-    /// <param name="userData">User-supplied data</param>
-    public LogStream(LoggingCallback callback, String userData)
-    {
-      Initialize(callback, userData);
-    }
+  /// <summary>
+  /// Constructs a new LogStream.
+  /// </summary>
+  /// <param name="callback">Logging callback that is called when messages are received by the log stream.</param>
+  /// <param name="userData">User-supplied data</param>
+  public LogStream(LoggingCallback callback, string userData)
+  {
+    Initialize(callback, userData);
+  }
 
-    /// <summary>
-    /// Finalizes an instance of the <see cref="LogStream"/> class.
-    /// </summary>
-    ~LogStream()
-    {
-      Dispose(false);
-    }
+  /// <summary>
+  /// Finalizes an instance of the <see cref="LogStream"/> class.
+  /// </summary>
+  ~LogStream()
+  {
+    Dispose(false);
+  }
 
-    /// <summary>
-    /// Detaches all active logstreams from the library.
-    /// </summary>
-    public static void DetachAllLogstreams() {
-      var attachedLogStreams
-        = Interlocked.Exchange(ref s_attachedLogStreams,
-          s_attachedLogStreams.Clear());
+  /// <summary>
+  /// Detaches all active logstreams from the library.
+  /// </summary>
+  public static void DetachAllLogstreams() {
+    var attachedLogStreams
+      = Interlocked.Exchange(ref s_attachedLogStreams,
+        s_attachedLogStreams.Clear());
 
-      foreach (var logStream in attachedLogStreams)
-        logStream.Detach(); 
-    }
+    foreach (var logStream in attachedLogStreams)
+      logStream.Detach(); 
+  }
 
-    /// <summary>
-    /// Gets all active logstreams that are currently attached to the library.
-    /// </summary>
-    /// <returns>Collection of active logstreams attached to the library.</returns>
-    public static IEnumerable<LogStream> GetAttachedLogStreams()
-      => s_attachedLogStreams;
+  /// <summary>
+  /// Gets all active logstreams that are currently attached to the library.
+  /// </summary>
+  /// <returns>Collection of active logstreams attached to the library.</returns>
+  public static IEnumerable<LogStream> GetAttachedLogStreams()
+    => s_attachedLogStreams;
 
-    //Ensure we cleanup our logstreams if any are around when the unmanaged library is freed.
-    private static void AssimpLibraryFreed(object sender, EventArgs e)
-    {
-      DetachAllLogstreams();
-    }
+  //Ensure we cleanup our logstreams if any are around when the unmanaged library is freed.
+  private static void AssimpLibraryFreed(object sender, EventArgs e)
+  {
+    DetachAllLogstreams();
+  }
 
-    private static unsafe void StaticAttach() {
-      if (Interlocked.Increment(ref s_instanceCounter) != 1)
-        return;
+  private static unsafe void StaticAttach() {
+    if (Interlocked.Increment(ref s_instanceCounter) != 1)
+      return;
 
-      AssimpLibrary.Instance.AttachLogStream((nint)s_logstreamPtr);
-    }
+    AssimpLibrary.Instance.AttachLogStream((nint)s_logstreamPtr);
+  }
 
-    private static unsafe void StaticDetach() {
-      if (Interlocked.Decrement(ref s_instanceCounter) != 0)
-        return;
+  private static unsafe void StaticDetach() {
+    if (Interlocked.Decrement(ref s_instanceCounter) != 0)
+      return;
       
-      AssimpLibrary.Instance.DetachLogStream((nint)s_logstreamPtr);
-    }
+    AssimpLibrary.Instance.DetachLogStream((nint)s_logstreamPtr);
+  }
     
 
-    /// <summary>
-    /// Attaches the logstream to the library.
-    /// </summary>
-    public bool Attach()
-    {
-      var wasAttached = Interlocked.Increment(ref m_isAttachedValue) > 1;
+  /// <summary>
+  /// Attaches the logstream to the library.
+  /// </summary>
+  public bool Attach()
+  {
+    var wasAttached = Interlocked.Increment(ref m_isAttachedValue) > 1;
       
-      var added = s_logStreams.Add(this);
+    var added = s_logStreams.Add(this);
 
-      if (!added) {
-        Interlocked.Decrement(ref m_isAttachedValue);
-        return false;
-      }
+    if (!added) {
+      Interlocked.Decrement(ref m_isAttachedValue);
+      return false;
+    }
       
       
-      if (!wasAttached) {
-        ImmutableInterlocked.Update(ref s_attachedLogStreams,
-          static (attachedLogStreams, item) => attachedLogStreams.Add(item),
-          this);
-        OnAttach();
-      }
-
-      StaticAttach();
-      
-      return true;
+    if (!wasAttached) {
+      ImmutableInterlocked.Update(ref s_attachedLogStreams,
+        static (attachedLogStreams, item) => attachedLogStreams.Add(item),
+        this);
+      OnAttach();
     }
 
-    /// <summary>
-    /// Detaches the logstream from the library.
-    /// </summary>
-    public bool Detach()
-    {
-      var shouldDetach = Interlocked.Decrement(ref m_isAttachedValue) == 0;
+    StaticAttach();
       
-      var removed = s_logStreams.Remove(this);
+    return true;
+  }
 
-      if (!removed)
-        return false;
+  /// <summary>
+  /// Detaches the logstream from the library.
+  /// </summary>
+  public bool Detach()
+  {
+    var shouldDetach = Interlocked.Decrement(ref m_isAttachedValue) == 0;
+      
+    var removed = s_logStreams.Remove(this);
 
-      if (shouldDetach) {
-        ImmutableInterlocked.Update(ref s_attachedLogStreams,
-          static (attachedLogStreams, item) => attachedLogStreams.Remove(item),
-          this);
-        OnDetach();
-      }
+    if (!removed)
+      return false;
+
+    if (shouldDetach) {
+      ImmutableInterlocked.Update(ref s_attachedLogStreams,
+        static (attachedLogStreams, item) => attachedLogStreams.Remove(item),
+        this);
+      OnDetach();
+    }
         
-      StaticDetach();
+    StaticDetach();
 
-      return true;
-    }
+    return true;
+  }
 
-    /// <summary>
-    /// Logs a message.
-    /// </summary>
-    /// <param name="msg">Message contents</param>
-    public void Log(String msg)
+  /// <summary>
+  /// Logs a message.
+  /// </summary>
+  /// <param name="msg">Message contents</param>
+  public void Log(string msg)
+  {
+    if (string.IsNullOrEmpty(msg))
+      return;
+
+    OnAiLogStreamCallback(msg);
+  }
+
+  /// <summary>
+  /// Releases unmanaged resources held by the LogStream. This should not be called by the user if the logstream is currently attached to an assimp importer.
+  /// </summary>
+  public void Dispose()
+  {
+    Dispose(true);
+    GC.SuppressFinalize(this);
+  }
+
+  /// <summary>
+  /// Releases unmanaged and - optionally - managed resources.
+  /// </summary>
+  /// <param name="disposing">True to release both managed and unmanaged resources; False to release only unmanaged resources.</param>
+  protected virtual void Dispose(bool disposing)
+  {
+    if (Interlocked.CompareExchange(ref m_isDisposedValue, 1, 0) != 0)
+      return;
+
+    while (Detach())
     {
-      if (String.IsNullOrEmpty(msg))
-        return;
-
-      OnAiLogStreamCallback(msg);
-    }
-
-    /// <summary>
-    /// Releases unmanaged resources held by the LogStream. This should not be called by the user if the logstream is currently attached to an assimp importer.
-    /// </summary>
-    public void Dispose()
-    {
-      Dispose(true);
-      GC.SuppressFinalize(this);
-    }
-
-    /// <summary>
-    /// Releases unmanaged and - optionally - managed resources.
-    /// </summary>
-    /// <param name="disposing">True to release both managed and unmanaged resources; False to release only unmanaged resources.</param>
-    protected virtual void Dispose(bool disposing)
-    {
-      if (Interlocked.CompareExchange(ref m_isDisposedValue, 1, 0) != 0)
-        return;
-
-      while (Detach())
-      {
-        // call it again
-      }
-    }
-
-    /// <summary>
-    /// Override this method to log a message for a subclass of Logstream, if no callback
-    /// was set.
-    /// </summary>
-    /// <param name="msg">Message</param>
-    /// <param name="userData">User data</param>
-    protected virtual void LogMessage(String msg, String userData) { }
-
-    /// <summary>
-    /// Called when the log stream has been attached to the assimp importer. At this point it may start receiving messages.
-    /// </summary>
-    protected virtual void OnAttach() { }
-
-    /// <summary>
-    /// Called when the log stream has been detatched from the assimp importer. After this point it will stop receiving
-    /// messages until it is re-attached.
-    /// </summary>
-    protected virtual void OnDetach() { }
-
-    /// <summary>
-    /// Callback for Assimp that handles a message being logged.
-    /// </summary>
-    /// <param name="msg"></param>
-    /// <param name="userData"></param>
-    protected void OnAiLogStreamCallback(String msg)
-    {
-      if (m_logCallback != null)
-      {
-        m_logCallback(msg, m_userData);
-      }
-      else
-      {
-        LogMessage(msg, m_userData);
-      }
-    }
-    protected static void StaticOnAiLogStreamCallback(String msg, IntPtr userData)
-    {
-      foreach (var logStream in s_logStreams)
-      {
-        logStream.OnAiLogStreamCallback(msg);
-      }
-    }
-
-    /// <summary>
-    /// Initializes the stream by setting up native pointers for Assimp to the specified functions.
-    /// </summary>
-    /// <param name="aiLogStreamCallback">Callback that is marshaled to native code, a reference is held on to avoid it being GC'ed.</param>
-    /// <param name="callback">User callback, if any. Defaults to console if null.</param>
-    /// <param name="userData">User data, or empty.</param>
-    /// <param name="assimpUserData">Additional assimp user data, if any.</param>
-    protected void Initialize(LoggingCallback callback, String userData = "")
-    {
-      if (userData == null)
-        userData = String.Empty;
-
-      m_logCallback = callback;
-      m_userData = userData;
-
+      // call it again
     }
   }
 
   /// <summary>
-  /// Log stream that writes messages to the Console.
+  /// Override this method to log a message for a subclass of Logstream, if no callback
+  /// was set.
   /// </summary>
-  public sealed class ConsoleLogStream : LogStream
+  /// <param name="msg">Message</param>
+  /// <param name="userData">User data</param>
+  protected virtual void LogMessage(string msg, string userData) { }
+
+  /// <summary>
+  /// Called when the log stream has been attached to the assimp importer. At this point it may start receiving messages.
+  /// </summary>
+  protected virtual void OnAttach() { }
+
+  /// <summary>
+  /// Called when the log stream has been detatched from the assimp importer. After this point it will stop receiving
+  /// messages until it is re-attached.
+  /// </summary>
+  protected virtual void OnDetach() { }
+
+  /// <summary>
+  /// Callback for Assimp that handles a message being logged.
+  /// </summary>
+  /// <param name="msg"></param>
+  /// <param name="userData"></param>
+  protected void OnAiLogStreamCallback(string msg)
   {
-    /// <summary>
-    /// Constructs a new console logstream.
-    /// </summary>
-    public ConsoleLogStream() : base() { }
-
-    /// <summary>
-    /// Constructs a new console logstream.
-    /// </summary>
-    /// <param name="userData">User supplied data</param>
-    public ConsoleLogStream(String userData) : base(userData) { }
-
-    /// <summary>
-    /// Log a message to the console.
-    /// </summary>
-    /// <param name="msg">Message</param>
-    /// <param name="userData">Userdata</param>
-    protected override void LogMessage(String msg, String userData)
+    if (m_logCallback != null)
     {
-      if (String.IsNullOrEmpty(userData))
-      {
-        Console.Write(msg);
-      }
-      else
-      {
-        Console.Write(String.Format("{0}: {1}", userData, msg));
-      }
+      m_logCallback(msg, m_userData);
     }
+    else
+    {
+      LogMessage(msg, m_userData);
+    }
+  }
+  protected static void StaticOnAiLogStreamCallback(string msg, nint userData)
+  {
+    foreach (var logStream in s_logStreams)
+    {
+      logStream.OnAiLogStreamCallback(msg);
+    }
+  }
+
+  /// <summary>
+  /// Initializes the stream by setting up native pointers for Assimp to the specified functions.
+  /// </summary>
+  /// <param name="aiLogStreamCallback">Callback that is marshaled to native code, a reference is held on to avoid it being GC'ed.</param>
+  /// <param name="callback">User callback, if any. Defaults to console if null.</param>
+  /// <param name="userData">User data, or empty.</param>
+  /// <param name="assimpUserData">Additional assimp user data, if any.</param>
+  protected void Initialize(LoggingCallback callback, string userData = "")
+  {
+    userData ??= string.Empty;
+
+    m_logCallback = callback;
+    m_userData = userData;
+
+  }
+}
+
+/// <summary>
+/// Log stream that writes messages to the Console.
+/// </summary>
+public sealed class ConsoleLogStream : LogStream
+{
+  /// <summary>
+  /// Constructs a new console logstream.
+  /// </summary>
+  public ConsoleLogStream()
+  { }
+
+  /// <summary>
+  /// Constructs a new console logstream.
+  /// </summary>
+  /// <param name="userData">User supplied data</param>
+  public ConsoleLogStream(string userData) : base(userData) { }
+
+  /// <summary>
+  /// Log a message to the console.
+  /// </summary>
+  /// <param name="msg">Message</param>
+  /// <param name="userData">Userdata</param>
+  protected override void LogMessage(string msg, string userData)
+  {
+    Console.Write(string.IsNullOrEmpty(userData) ? msg : $"{userData}: {msg}");
   }
 }

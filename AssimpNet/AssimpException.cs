@@ -22,38 +22,38 @@
 
 using System;
 
-namespace Assimp
+namespace Assimp;
+
+/// <summary>
+/// AssimpNet general exception.
+/// </summary>
+public class AssimpException : Exception
 {
+
     /// <summary>
-    /// AssimpNet general exception.
+    /// Initializes a new instance of the <see cref="AssimpException"/> class.
     /// </summary>
-    public class AssimpException : Exception
-    {
+    public AssimpException()
+    { }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="AssimpException"/> class.
-        /// </summary>
-        public AssimpException() : base() { }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AssimpException"/> class.
+    /// </summary>
+    /// <param name="msg">The error message.</param>
+    public AssimpException(string msg) : base(msg) { }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="AssimpException"/> class.
-        /// </summary>
-        /// <param name="msg">The error message.</param>
-        public AssimpException(String msg) : base(msg) { }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AssimpException"/> class.
+    /// </summary>
+    /// <param name="paramName">Name of the param.</param>
+    /// <param name="msg">The error message.</param>
+    public AssimpException(string paramName, string msg)
+        : base("Parameter: " + paramName + " Error: " + msg) { }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="AssimpException"/> class.
-        /// </summary>
-        /// <param name="paramName">Name of the param.</param>
-        /// <param name="msg">The error message.</param>
-        public AssimpException(String paramName, String msg)
-            : base("Parameter: " + paramName + " Error: " + msg) { }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="AssimpException"/> class.
-        /// </summary>
-        /// <param name="msg">The error message</param>
-        /// <param name="innerException">The inner exception.</param>
-        public AssimpException(String msg, Exception innerException) : base(msg, innerException) { }
-    }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AssimpException"/> class.
+    /// </summary>
+    /// <param name="msg">The error message</param>
+    /// <param name="innerException">The inner exception.</param>
+    public AssimpException(string msg, Exception innerException) : base(msg, innerException) { }
 }

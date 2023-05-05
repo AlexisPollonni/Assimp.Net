@@ -23,53 +23,52 @@
 using System.IO;
 using NUnit.Framework;
 
-namespace Assimp.Test
+namespace Assimp.Test;
+
+[TestFixture]
+public class ExportDataBlobTestFixture
 {
-    [TestFixture]
-    public class ExportDataBlobTestFixture
+    [Test]
+    public void TestToStream()
     {
-        [Test]
-        public void TestToStream()
-        {
-            var path = Path.Combine(TestHelper.RootPath, "TestFiles/duck.dae");
+        var path = Path.Combine(TestHelper.RootPath, "TestFiles/duck.dae");
 
-            var context = new AssimpContext();
-            var logStream = new TestContextLogStream();
-            logStream.Attach();
+        var context = new AssimpContext();
+        var logStream = new TestContextLogStream();
+        logStream.Attach();
             
-            var blob = context.ConvertFromFileToBlob(path, "obj");
+        var blob = context.ConvertFromFileToBlob(path, "obj");
 
-            Assert.That(blob, Is.Not.Null);
-            Assert.That(blob.HasData, Is.True);
+        Assert.That(blob, Is.Not.Null);
+        Assert.That(blob.HasData, Is.True);
 
-            var stream = new MemoryStream();
-            blob.ToStream(stream);
+        var stream = new MemoryStream();
+        blob.ToStream(stream);
 
-            Assert.That(stream.Length, Is.Not.Zero);
-            stream.Position = 0;
+        Assert.That(stream.Length, Is.Not.Zero);
+        stream.Position = 0;
 
-            var blob2 = ExportDataBlob.FromStream(stream);
+        var blob2 = ExportDataBlob.FromStream(stream);
+        Assert.Multiple(() =>
+        {
+            Assert.That(blob2, Is.Not.Null);
+            Assert.That(blob2.Data, Has.Length.EqualTo(blob.Data.Length));
+        });
+
+        if (blob.NextBlob != null)
+        {
             Assert.Multiple(() =>
             {
-                Assert.That(blob2, Is.Not.Null);
-                Assert.That(blob2.Data, Has.Length.EqualTo(blob.Data.Length));
+                Assert.That(blob2.NextBlob, Is.Not.Null);
+                Assert.That(blob2.NextBlob.Name, Is.EqualTo(blob.NextBlob.Name));
+                Assert.That(blob2.NextBlob.Data, Has.Length.EqualTo(blob.NextBlob.Data.Length));
             });
-
-            if (blob.NextBlob != null)
-            {
-                Assert.Multiple(() =>
-                {
-                    Assert.That(blob2.NextBlob, Is.Not.Null);
-                    Assert.That(blob2.NextBlob.Name, Is.EqualTo(blob.NextBlob.Name));
-                    Assert.That(blob2.NextBlob.Data, Has.Length.EqualTo(blob.NextBlob.Data.Length));
-                });
-            }
-            else
-            {
-                logStream.Log($"blob.NextBlob is null");
-            }
-
-            logStream.Detach();
         }
+        else
+        {
+            logStream.Log("blob.NextBlob is null");
+        }
+
+        logStream.Detach();
     }
 }

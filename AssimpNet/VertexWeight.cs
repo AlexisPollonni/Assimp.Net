@@ -20,51 +20,49 @@
 * THE SOFTWARE.
 */
 
-using System;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
-namespace Assimp
+namespace Assimp;
+
+/// <summary>
+/// Represents a single influence of a bone on a vertex.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct VertexWeight
 {
     /// <summary>
-    /// Represents a single influence of a bone on a vertex.
+    /// Index of the vertex which is influenced by the bone.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
-    public struct VertexWeight
+    public int VertexID;
+
+    /// <summary>
+    /// Strength of the influence in range of (0...1). All influences
+    /// from all bones at one vertex amounts to 1.
+    /// </summary>
+    public float Weight;
+
+    /// <summary>
+    /// Constructs a new VertexWeight.
+    /// </summary>
+    /// <param name="vertID">Index of the vertex.</param>
+    /// <param name="weight">Weight of the influence.</param>
+    public VertexWeight(int vertID, float weight)
     {
-        /// <summary>
-        /// Index of the vertex which is influenced by the bone.
-        /// </summary>
-        public int VertexID;
+        VertexID = vertID;
+        Weight = weight;
+    }
 
-        /// <summary>
-        /// Strength of the influence in range of (0...1). All influences
-        /// from all bones at one vertex amounts to 1.
-        /// </summary>
-        public float Weight;
-
-        /// <summary>
-        /// Constructs a new VertexWeight.
-        /// </summary>
-        /// <param name="vertID">Index of the vertex.</param>
-        /// <param name="weight">Weight of the influence.</param>
-        public VertexWeight(int vertID, float weight)
-        {
-            VertexID = vertID;
-            Weight = weight;
-        }
-
-        /// <summary>
-        /// Returns a <see cref="System.String"/> that represents this instance.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="System.String"/> that represents this instance.
-        /// </returns>
-        public override string ToString()
-        {
-            CultureInfo info = CultureInfo.CurrentCulture;
-            return String.Format(info, "{{VertexID:{0} Weight:{1}}}",
-                new Object[] { VertexID.ToString(info), Weight.ToString(info) });
-        }
+    /// <summary>
+    /// Returns a <see cref="System.String"/> that represents this instance.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="System.String"/> that represents this instance.
+    /// </returns>
+    public override string ToString()
+    {
+        var info = CultureInfo.CurrentCulture;
+        return string.Format(info, "{{VertexID:{0} Weight:{1}}}",
+            new object[] { VertexID.ToString(info), Weight.ToString(info) });
     }
 }

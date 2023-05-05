@@ -21,87 +21,78 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Runtime.InteropServices;
 
-namespace Assimp.Unmanaged
+namespace Assimp.Unmanaged;
+
+internal sealed partial class UnmanagedUwpLibraryImplementation : UnmanagedLibraryImplementation
 {
-    internal sealed class UnmanagedUwpLibraryImplementation : UnmanagedLibraryImplementation
+    public override string DllExtension => ".dll";
+
+    public UnmanagedUwpLibraryImplementation(string defaultLibName, Type[] unmanagedFunctionDelegateTypes)
+        : base(defaultLibName, unmanagedFunctionDelegateTypes)
     {
-        public override String DllExtension
-        {
-            get
-            {
-                return ".dll";
-            }
-        }
-
-        public UnmanagedUwpLibraryImplementation(String defaultLibName, Type[] unmanagedFunctionDelegateTypes)
-            : base(defaultLibName, unmanagedFunctionDelegateTypes)
-        {
-        }
-
-        protected override IntPtr NativeLoadLibrary(String path)
-        {
-            IntPtr libraryHandle = LoadPackagedLibrary(path);
-
-            if(libraryHandle == IntPtr.Zero && ThrowOnLoadFailure)
-            {
-                Exception innerException = null;
-
-                //Keep the try-catch in case we're running on Mono. We're providing our own implementation of "Marshal.GetHRForLastWin32Error" which is NOT implemented
-                //in mono, but let's just be cautious.
-                try
-                {
-                    int hr = GetHRForLastWin32Error();
-                    innerException = Marshal.GetExceptionForHR(hr);
-                }
-                catch(Exception) { }
-
-                if(innerException != null)
-                    throw new AssimpException(String.Format("Error loading unmanaged library from path: {0}\n\n{1}", path, innerException.Message), innerException);
-                else
-                    throw new AssimpException(String.Format("Error loading unmanaged library from path: {0}", path));
-            }
-
-            return libraryHandle;
-        }
-
-        protected override IntPtr NativeGetProcAddress(IntPtr handle, String functionName)
-        {
-            return GetProcAddress(handle, functionName);
-        }
-
-        protected override void NativeFreeLibrary(IntPtr handle)
-        {
-            FreeLibrary(handle);
-        }
-
-        private int GetHRForLastWin32Error()
-        {
-            //Mono, for some reason, throws in Marshal.GetHRForLastWin32Error(), but it should implement GetLastWin32Error, which is recommended than
-            //p/invoking it ourselves when SetLastError is set in DllImport
-            int dwLastError = Marshal.GetLastWin32Error();
-
-            if((dwLastError & 0x80000000) == 0x80000000)
-                return dwLastError;
-            else
-                return (dwLastError & 0x0000FFFF) | unchecked((int) 0x80070000);
-        }
-
-        #region Native Methods
-
-        // See also https://docs.microsoft.com/en-us/uwp/win32-and-com/win32-apis.
-        [DllImport("api-ms-win-core-libraryloader-l2-1-0.dll", SetLastError = true)]
-        private static extern IntPtr LoadPackagedLibrary([MarshalAs(UnmanagedType.LPWStr)] string libraryName, int reserved = 0);
-
-        [DllImport("api-ms-win-core-libraryloader-l1-2-0.dll", SetLastError = true)]
-        private static extern bool FreeLibrary(IntPtr hModule);
-
-        [DllImport("api-ms-win-core-libraryloader-l1-2-0.dll")]
-        private static extern IntPtr GetProcAddress(IntPtr hModule, String procName);
-
-        #endregion
     }
+
+    protected override nint NativeLoadLibrary(string path)
+    {
+        var libraryHandle = LoadPackagedLibrary(path);
+
+        if(libraryHandle == nint.Zero && ThrowOnLoadFailure)
+        {
+            Exception innerException = null;
+
+            //Keep the try-catch in case we're running on Mono. We're providing our own implementation of "Marshal.GetHRForLastWin32Error" which is NOT implemented
+            //in mono, but let's just be cautious.
+            try
+            {
+                var hr = GetHRForLastWin32Error();
+                innerException = Marshal.GetExceptionForHR(hr);
+            }
+            catch(Exception) { }
+
+            if(innerException != null)
+                throw new AssimpException(
+                    $"Error loading unmanaged library from path: {path}\n\n{innerException.Message}", innerException);
+            throw new AssimpException($"Error loading unmanaged library from path: {path}");
+        }
+
+        return libraryHandle;
+    }
+
+    protected override nint NativeGetProcAddress(nint handle, string functionName)
+    {
+        return GetProcAddress(handle, functionName);
+    }
+
+    protected override void NativeFreeLibrary(nint handle)
+    {
+        FreeLibrary(handle);
+    }
+
+    private int GetHRForLastWin32Error()
+    {
+        //Mono, for some reason, throws in Marshal.GetHRForLastWin32Error(), but it should implement GetLastWin32Error, which is recommended than
+        //p/invoking it ourselves when SetLastError is set in DllImport
+        var dwLastError = Marshal.GetLastWin32Error();
+
+        if((dwLastError & 0x80000000) == 0x80000000)
+            return dwLastError;
+        return (dwLastError & 0x0000FFFF) | unchecked((int) 0x80070000);
+    }
+
+    #region Native Methods
+
+    // See also https://docs.microsoft.com/en-us/uwp/win32-and-com/win32-apis.
+    [LibraryImport("api-ms-win-core-libraryloader-l2-1-0.dll", SetLastError = true)]
+    private static partial nint LoadPackagedLibrary([MarshalAs(UnmanagedType.LPWStr)] string libraryName, int reserved = 0);
+
+    [LibraryImport("api-ms-win-core-libraryloader-l1-2-0.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool FreeLibrary(nint hModule);
+
+    [LibraryImport("api-ms-win-core-libraryloader-l1-2-0.dll", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial nint GetProcAddress(nint hModule, string procName);
+
+    #endregion
 }

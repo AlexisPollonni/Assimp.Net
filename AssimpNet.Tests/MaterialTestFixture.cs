@@ -25,130 +25,136 @@ using System.IO;
 using ImageMagick;
 using NUnit.Framework;
 
-namespace Assimp.Test
+namespace Assimp.Test;
+
+[TestFixture]
+public class MaterialTestFixture
 {
-    [TestFixture]
-    public class MaterialTestFixture
+
+    [TestCase]
+    public void TestBaseMaterialProperty()
     {
+        var material = new Material();
+        var prop = new MaterialProperty(null, false);
 
-        [TestCase]
-        public void TestBaseMaterialProperty()
+        var success = material.AddProperty(prop);
+        Assert.Multiple(() =>
         {
-            var material = new Material();
-            var prop = new MaterialProperty(null, false);
-
-            var success = material.AddProperty(prop);
-            Assert.Multiple(() =>
-            {
-                Assert.That(success, Is.False);
-                Assert.That(string.IsNullOrEmpty(prop.FullyQualifiedName), Is.True);
-            });
+            Assert.That(success, Is.False);
+            Assert.That(string.IsNullOrEmpty(prop.FullyQualifiedName), Is.True);
+        });
             
-            prop = new MaterialProperty("test", "test value");
-            success = material.AddProperty(prop);
-            Assert.Multiple(() =>
-            {
-                Assert.That(success, Is.True);
-                Assert.That(material.PropertyCount, Is.EqualTo(1));
-                Assert.That(material.HasProperty("test,0,0"), Is.True);
-                var mp = material.GetProperty("test,0,0");
-                Assert.That(mp.Name, Is.EqualTo("test"));
-                Assert.That(mp.PropertyType, Is.EqualTo(PropertyType.String));
-                Assert.That(mp.GetStringValue(), Is.EqualTo("test value"));
-            });
+        prop = new("test", "test value");
+        success = material.AddProperty(prop);
+        Assert.Multiple(() =>
+        {
+            Assert.That(success, Is.True);
+            Assert.That(material.PropertyCount, Is.EqualTo(1));
+            Assert.That(material.HasProperty("test,0,0"), Is.True);
+            var mp = material.GetProperty("test,0,0");
+            Assert.That(mp.Name, Is.EqualTo("test"));
+            Assert.That(mp.PropertyType, Is.EqualTo(PropertyType.String));
+            Assert.That(mp.GetStringValue(), Is.EqualTo("test value"));
+        });
             
-            prop = new MaterialProperty("test2", 1.0f);
-            success = material.AddProperty(prop);
-            Assert.Multiple(() =>
-            {
-                Assert.That(success, Is.True);
-                Assert.That(material.PropertyCount, Is.EqualTo(2));
-                Assert.That(material.HasProperty("test2,0,0"), Is.True);
-                var mp = material.GetProperty("test2,0,0");
-                Assert.That(mp.Name, Is.EqualTo("test2"));
-                Assert.That(mp.PropertyType, Is.EqualTo(PropertyType.Float));
-                Assert.That(mp.GetFloatValue(), Is.EqualTo(1.0f));
-            });
+        prop = new("test2", 1.0f);
+        success = material.AddProperty(prop);
+        Assert.Multiple(() =>
+        {
+            Assert.That(success, Is.True);
+            Assert.That(material.PropertyCount, Is.EqualTo(2));
+            Assert.That(material.HasProperty("test2,0,0"), Is.True);
+            var mp = material.GetProperty("test2,0,0");
+            Assert.That(mp.Name, Is.EqualTo("test2"));
+            Assert.That(mp.PropertyType, Is.EqualTo(PropertyType.Float));
+            Assert.That(mp.GetFloatValue(), Is.EqualTo(1.0f));
+        });
             
-            prop = new MaterialProperty("test3", true);
-            success = material.AddProperty(prop);
-            Assert.Multiple(() =>
-            {
-                Assert.That(success, Is.True);
-                Assert.That(material.PropertyCount, Is.EqualTo(3));
-                Assert.That(material.HasProperty("test3,0,0"), Is.True);
-                var mp = material.GetProperty("test3,0,0");
-                Assert.That(mp.Name, Is.EqualTo("test3"));
-                Assert.That(mp.GetBooleanValue(), Is.True);
-            });
+        prop = new("test3", true);
+        success = material.AddProperty(prop);
+        Assert.Multiple(() =>
+        {
+            Assert.That(success, Is.True);
+            Assert.That(material.PropertyCount, Is.EqualTo(3));
+            Assert.That(material.HasProperty("test3,0,0"), Is.True);
+            var mp = material.GetProperty("test3,0,0");
+            Assert.That(mp.Name, Is.EqualTo("test3"));
+            Assert.That(mp.GetBooleanValue(), Is.True);
+        });
             
+        var color = new Color4D(1.0f, 0.0f, 0.0f, 1.0f);
+        prop = new("test4", color);
+        success = material.AddProperty(prop);
+        Assert.Multiple(() =>
+        {
+            Assert.That(success, Is.True);
+            Assert.That(material.PropertyCount, Is.EqualTo(4));
             var color = new Color4D(1.0f, 0.0f, 0.0f, 1.0f);
-            prop = new MaterialProperty("test4", color);
-            success = material.AddProperty(prop);
-            Assert.Multiple(() =>
-            {
-                Assert.That(success, Is.True);
-                Assert.That(material.PropertyCount, Is.EqualTo(4));
-                var color = new Color4D(1.0f, 0.0f, 0.0f, 1.0f);
-                Assert.That(material.HasProperty("test4,0,0"), Is.True);
-                var mp = material.GetProperty("test4,0,0");
-                Assert.That(mp.Name, Is.EqualTo("test4"));
-                Assert.That(mp.GetColor4DValue(), Is.EqualTo(color));
-            });
-            foreach (var property in material.GetAllProperties())
-            {
-                Console.WriteLine($"{property.Name} aka '{property.FullyQualifiedName}' of type {property.PropertyType}.");
-            }
-        }
-
-        [TestCase]
-        public void TestEmbeddedTexture()
+            Assert.That(material.HasProperty("test4,0,0"), Is.True);
+            var mp = material.GetProperty("test4,0,0");
+            Assert.That(mp.Name, Is.EqualTo("test4"));
+            Assert.That(mp.GetColor4DValue(), Is.EqualTo(color));
+        });
+        foreach (var property in material.GetAllProperties())
         {
-            var inputFile = Path.Combine(TestHelper.RootPath, "TestFiles/apples.fbx");
+            Console.WriteLine($"{property.Name} aka '{property.FullyQualifiedName}' of type {property.PropertyType}.");
+        }
+    }
 
-            var context = new AssimpContext();
-            var log = new TestContextLogStream();
-            log.Attach();
+    [TestCase]
+    public void TestEmbeddedTexture()
+    {
+        var inputFile = Path.Combine(TestHelper.RootPath, "TestFiles/apples.fbx");
 
-            var scene = context.ImportFile(inputFile);
-            Assert.That(scene, Is.Not.Null);
-            Assert.That(scene.Textures, Is.Not.Empty);
-            foreach (var text in scene.Textures)
+        var context = new AssimpContext();
+        var log = new TestContextLogStream();
+        log.Attach();
+
+        var scene = context.ImportFile(inputFile);
+        Assert.That(scene, Is.Not.Null);
+        Assert.That(scene.Textures, Is.Not.Empty);
+        foreach (var text in scene.Textures)
+        {
+            Assert.That(text.HasCompressedData || text.HasNonCompressedData, Is.True);
+            if (text.HasNonCompressedData)
             {
-                Assert.That(text.HasCompressedData || text.HasNonCompressedData, Is.True);
-                if (text.HasNonCompressedData)
-                {
-                    Assert.That(text.NonCompressedDataSize, Is.GreaterThan(0));
-                    // var pixels = text.NonCompressedData...;
-                    // var img = new MagickImage(pixels, new PixelReadSettings(text.Width, text.Height, StorageType.Float, PixelMapping.ABGR));
-                }
-                if (text.HasCompressedData)
+                Assert.That(text.NonCompressedDataSize, Is.GreaterThan(0));
+                // var pixels = text.NonCompressedData...;
+                // var img = new MagickImage(pixels, new PixelReadSettings(text.Width, text.Height, StorageType.Float, PixelMapping.ABGR));
+            }
+            if (text.HasCompressedData)
+            {
+                Assert.Multiple(() =>
                 {
                     Assert.That(text.CompressedDataSize, Is.GreaterThan(0));
                     Assert.That(text.CompressedFormatHint, Is.Not.Empty);
-                    var img = new MagickImage(text.CompressedData);
-                    log.Log($"image: {img.Format} {img.Width}x{img.Height}: ");
-                    Assert.That(img, Is.Not.Null);
-                }
-                log.Log($"{text.Filename} {text.Width}x{text.Height} {text.HasCompressedData}:{text.CompressedDataSize}({text.CompressedFormatHint}) {text.HasNonCompressedData}:{text.NonCompressedDataSize}\n");
+                });
+                var img = new MagickImage(text.CompressedData);
+                log.Log($"image: {img.Format} {img.Width}x{img.Height}: ");
+                Assert.That(img, Is.Not.Null);
             }
-            log.Detach();
+
+            log.Log($"{text.Filename} {text.Width}x{text.Height} {text.HasCompressedData}:{text.CompressedDataSize}({text.CompressedFormatHint}) {text.HasNonCompressedData}:{text.NonCompressedDataSize}\n");
         }
+        log.Detach();
+    }
         
-        [TestCase]
-        public void TestCreatingEmbeddedTexture()
+    [TestCase]
+    public void TestCreatingEmbeddedTexture()
+    {
+        var scene = new Scene();
+        const string fileName = "TestFiles/duckCM.bmp";
+        var filePath = Path.Combine(TestHelper.RootPath, fileName);
+            
+        var imageBytes = new MagickImage(filePath).ToByteArray(MagickFormat.Png32);
+        var texture = new EmbeddedTexture("Png32", imageBytes, fileName);
+        scene.Textures.Add(texture);
+            
+        var texQuery = scene.GetEmbeddedTexture("*0");
+        Assert.Multiple(() =>
         {
-            var scene = new Scene();
-            const string fileName = "TestFiles/duckCM.bmp";
-            var filePath = Path.Combine(TestHelper.RootPath, fileName);
-            
-            var imageBytes = new MagickImage(filePath).ToByteArray(MagickFormat.Png32);
-            var texture = new EmbeddedTexture("Png32", imageBytes, fileName);
-            scene.Textures.Add(texture);
-            
-            var texQuery = scene.GetEmbeddedTexture("*0");
             Assert.That(texQuery.HasCompressedData || texQuery.HasNonCompressedData, Is.True);
             Assert.That(texQuery, Is.EqualTo(texture));
-        }
+        });
     }
 }

@@ -20,32 +20,30 @@
 * THE SOFTWARE.
 */
 
-using System;
 using System.Runtime.InteropServices;
 
-namespace Assimp
+namespace Assimp;
+
+/// <summary>
+/// Defines how an UV channel is transformed.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct UVTransform
 {
     /// <summary>
-    /// Defines how an UV channel is transformed.
+    /// Translation on the U and V axes. Default is 0|0
     /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
-    public struct UVTransform
-    {
-        /// <summary>
-        /// Translation on the U and V axes. Default is 0|0
-        /// </summary>
-        public Vector2D Translation;
+    public Vector2D Translation;
 
-        /// <summary>
-        /// Scaling on the U and V axes. Default is 1|1.
-        /// </summary>
-        public Vector2D Scaling;
+    /// <summary>
+    /// Scaling on the U and V axes. Default is 1|1.
+    /// </summary>
+    public Vector2D Scaling;
 
-        /// <summary>
-        /// Rotation in counter-clockwise direction, specfied in
-        /// radians. The rotation center is 0.5f|0.5f and the
-        /// default value is zero.
-        /// </summary>
-        public float Rotation;
-    }
+    /// <summary>
+    /// Rotation in counter-clockwise direction, specfied in
+    /// radians. The rotation center is 0.5f|0.5f and the
+    /// default value is zero.
+    /// </summary>
+    public float Rotation;
 }

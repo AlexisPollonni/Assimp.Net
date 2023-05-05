@@ -20,31 +20,25 @@
 * THE SOFTWARE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Runtime.InteropServices;
+namespace Assimp.Unmanaged;
 
-namespace Assimp.Unmanaged
+/// <summary>
+/// Enumerates supported platforms.
+/// </summary>
+public enum Platform
 {
     /// <summary>
-    /// Enumerates supported platforms.
+    /// Windows platform.
     /// </summary>
-    public enum Platform
-    {
-        /// <summary>
-        /// Windows platform.
-        /// </summary>
-        Windows,
+    Windows,
 
-        /// <summary>
-        /// Linux platform.
-        /// </summary>
-        Linux,
+    /// <summary>
+    /// Linux platform.
+    /// </summary>
+    Linux,
 
-        /// <summary>
-        /// Mac platform.
-        /// </summary>
-        Mac
-    }
+    /// <summary>
+    /// Mac platform.
+    /// </summary>
+    Mac
 }

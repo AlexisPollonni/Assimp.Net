@@ -20,36 +20,34 @@
 * THE SOFTWARE.
 */
 
-using System;
 using System.Runtime.InteropServices;
 
-namespace Assimp
+namespace Assimp;
+
+/// <summary>
+/// Defines a 3D ray with a point of origin and a direction.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct Ray
 {
     /// <summary>
-    /// Defines a 3D ray with a point of origin and a direction.
+    /// Origin of the ray in space.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
-    public struct Ray
+    public Vector3D Position;
+
+    /// <summary>
+    /// Direction of the ray.
+    /// </summary>
+    public Vector3D Direction;
+
+    /// <summary>
+    /// Constructs a new Ray.
+    /// </summary>
+    /// <param name="pos">Origin of the ray.</param>
+    /// <param name="dir">Direction of the ray.</param>
+    public Ray(Vector3D pos, Vector3D dir)
     {
-        /// <summary>
-        /// Origin of the ray in space.
-        /// </summary>
-        public Vector3D Position;
-
-        /// <summary>
-        /// Direction of the ray.
-        /// </summary>
-        public Vector3D Direction;
-
-        /// <summary>
-        /// Constructs a new Ray.
-        /// </summary>
-        /// <param name="pos">Origin of the ray.</param>
-        /// <param name="dir">Direction of the ray.</param>
-        public Ray(Vector3D pos, Vector3D dir)
-        {
-            Position = pos;
-            Direction = dir;
-        }
+        Position = pos;
+        Direction = dir;
     }
 }

@@ -21,78 +21,62 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Runtime.InteropServices;
 
-namespace Assimp.Unmanaged
+namespace Assimp.Unmanaged;
+
+internal sealed partial class UnmanagedMacLibraryImplementation : UnmanagedLibraryImplementation
 {
-    internal sealed class UnmanagedMacLibraryImplementation : UnmanagedLibraryImplementation
+    public override string DllExtension => ".dylib";
+
+    public override string DllPrefix => "lib";
+
+    public UnmanagedMacLibraryImplementation(string defaultLibName, Type[] unmanagedFunctionDelegateTypes)
+        : base(defaultLibName, unmanagedFunctionDelegateTypes)
     {
-        public override String DllExtension
-        {
-            get
-            {
-                return ".dylib";
-            }
-        }
-
-        public override String DllPrefix
-        {
-            get
-            {
-                return "lib";
-            }
-        }
-
-        public UnmanagedMacLibraryImplementation(String defaultLibName, Type[] unmanagedFunctionDelegateTypes)
-            : base(defaultLibName, unmanagedFunctionDelegateTypes)
-        {
-        }
-
-        protected override IntPtr NativeLoadLibrary(String path)
-        {
-            IntPtr libraryHandle = dlopen(path, RTLD_NOW);
-
-            if(libraryHandle == IntPtr.Zero && ThrowOnLoadFailure)
-            {
-                IntPtr errPtr = dlerror();
-                String msg = Marshal.PtrToStringAnsi(errPtr);
-                if(!String.IsNullOrEmpty(msg))
-                    throw new AssimpException(String.Format("Error loading unmanaged library from path: {0}\n\n{1}", path, msg));
-                else
-                    throw new AssimpException(String.Format("Error loading unmanaged library from path: {0}", path));
-            }
-
-            return libraryHandle;
-        }
-
-        protected override IntPtr NativeGetProcAddress(IntPtr handle, String functionName)
-        {
-            return dlsym(handle, functionName);
-        }
-
-        protected override void NativeFreeLibrary(IntPtr handle)
-        {
-            dlclose(handle);
-        }
-
-        #region Native Methods
-
-        [DllImport("libSystem.B.dylib")]
-        private static extern IntPtr dlopen(String fileName, int flags);
-
-        [DllImport("libSystem.B.dylib")]
-        private static extern IntPtr dlsym(IntPtr handle, String functionName);
-
-        [DllImport("libSystem.B.dylib")]
-        private static extern int dlclose(IntPtr handle);
-
-        [DllImport("libSystem.B.dylib")]
-        private static extern IntPtr dlerror();
-
-        private const int RTLD_NOW = 2;
-
-        #endregion
     }
+
+    protected override nint NativeLoadLibrary(string path)
+    {
+        var libraryHandle = dlopen(path, RTLD_NOW);
+
+        if(libraryHandle == nint.Zero && ThrowOnLoadFailure)
+        {
+            var errPtr = dlerror();
+            var msg = Marshal.PtrToStringAnsi(errPtr);
+            if(!string.IsNullOrEmpty(msg))
+                throw new AssimpException($"Error loading unmanaged library from path: {path}\n\n{msg}");
+            throw new AssimpException($"Error loading unmanaged library from path: {path}");
+        }
+
+        return libraryHandle;
+    }
+
+    protected override nint NativeGetProcAddress(nint handle, string functionName)
+    {
+        return dlsym(handle, functionName);
+    }
+
+    protected override void NativeFreeLibrary(nint handle)
+    {
+        dlclose(handle);
+    }
+
+    #region Native Methods
+
+    [LibraryImport("libSystem.B.dylib", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial nint dlopen(string fileName, int flags);
+
+    [LibraryImport("libSystem.B.dylib", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial nint dlsym(nint handle, string functionName);
+
+    [LibraryImport("libSystem.B.dylib")]
+    private static partial int dlclose(nint handle);
+
+    [LibraryImport("libSystem.B.dylib")]
+    private static partial nint dlerror();
+
+    private const int RTLD_NOW = 2;
+
+    #endregion
 }

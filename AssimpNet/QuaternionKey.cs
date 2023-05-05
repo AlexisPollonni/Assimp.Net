@@ -24,127 +24,126 @@ using System;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
-namespace Assimp
+namespace Assimp;
+
+/// <summary>
+/// Time-value pair specifying a rotation for a given time.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct QuaternionKey : IEquatable<QuaternionKey>
 {
     /// <summary>
-    /// Time-value pair specifying a rotation for a given time.
+    /// The time of this key.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
-    public struct QuaternionKey : IEquatable<QuaternionKey>
+    public double Time;
+
+    /// <summary>
+    /// The rotation of this key.
+    /// </summary>
+    public Quaternion Value;
+
+    /// <summary>
+    /// Constructs a new QuaternionKey.
+    /// </summary>
+    /// <param name="time">Time of the key.</param>
+    /// <param name="rot">Quaternion rotation at the time frame.</param>
+    public QuaternionKey(double time, Quaternion rot)
     {
-        /// <summary>
-        /// The time of this key.
-        /// </summary>
-        public double Time;
+        Time = time;
+        Value = rot;
+    }
 
-        /// <summary>
-        /// The rotation of this key.
-        /// </summary>
-        public Quaternion Value;
+    /// <summary>
+    /// Tests equality between two keys.
+    /// </summary>
+    /// <param name="a">The first key</param>
+    /// <param name="b">The second key</param>
+    /// <returns>True if the key's rotations are the same, false otherwise.</returns>
+    public static bool operator ==(QuaternionKey a, QuaternionKey b)
+    {
+        return a.Value == b.Value;
+    }
 
-        /// <summary>
-        /// Constructs a new QuaternionKey.
-        /// </summary>
-        /// <param name="time">Time of the key.</param>
-        /// <param name="rot">Quaternion rotation at the time frame.</param>
-        public QuaternionKey(double time, Quaternion rot)
+    /// <summary>
+    /// Tests inequality between two keys.
+    /// </summary>
+    /// <param name="a">The first key</param>
+    /// <param name="b">The second key</param>
+    /// <returns>True if the key's rotations are not the same, false otherwise.</returns>
+    public static bool operator !=(QuaternionKey a, QuaternionKey b)
+    {
+        return a.Value != b.Value;
+    }
+
+    /// <summary>
+    /// Tests inequality between two keys.
+    /// </summary>
+    /// <param name="a">The first key</param>
+    /// <param name="b">The second key</param>
+    /// <returns>True if the first key's time is less than the second key's.</returns>
+    public static bool operator <(QuaternionKey a, QuaternionKey b)
+    {
+        return a.Time < b.Time;
+    }
+
+    /// <summary>
+    /// Tests inequality between two keys.
+    /// </summary>
+    /// <param name="a">The first key</param>
+    /// <param name="b">The second key</param>
+    /// <returns>True if the first key's time is greater than the second key's.</returns>
+    public static bool operator >(QuaternionKey a, QuaternionKey b)
+    {
+        return a.Time > b.Time;
+    }
+
+    /// <summary>
+    /// Determines whether the specified <see cref="System.Object"/> is equal to this instance.
+    /// </summary>
+    /// <param name="obj">The <see cref="System.Object"/> to compare with this instance.</param>
+    /// <returns>
+    ///   <c>true</c> if the specified <see cref="System.Object"/> is equal to this instance; otherwise, <c>false</c>.
+    /// </returns>
+    public override bool Equals(object obj)
+    {
+        if(obj is QuaternionKey key)
         {
-            Time = time;
-            Value = rot;
+            return Equals(key);
         }
+        return false;
+    }
 
-        /// <summary>
-        /// Tests equality between two keys.
-        /// </summary>
-        /// <param name="a">The first key</param>
-        /// <param name="b">The second key</param>
-        /// <returns>True if the key's rotations are the same, false otherwise.</returns>
-        public static bool operator ==(QuaternionKey a, QuaternionKey b)
-        {
-            return a.Value == b.Value;
-        }
+    /// <summary>
+    /// Tests equality between this key and another.
+    /// </summary>
+    /// <param name="key">Other key to test</param>
+    /// <returns>True if their rotations are equal.</returns>
+    public bool Equals(QuaternionKey key)
+    {
+        return Value == key.Value;
+    }
 
-        /// <summary>
-        /// Tests inequality between two keys.
-        /// </summary>
-        /// <param name="a">The first key</param>
-        /// <param name="b">The second key</param>
-        /// <returns>True if the key's rotations are not the same, false otherwise.</returns>
-        public static bool operator !=(QuaternionKey a, QuaternionKey b)
-        {
-            return a.Value != b.Value;
-        }
+    /// <summary>
+    /// Returns a hash code for this instance.
+    /// </summary>
+    /// <returns>
+    /// A hash code for this instance, suitable for use in hashing algorithms and data structures like a hash table. 
+    /// </returns>
+    public override int GetHashCode()
+    {
+        return Value.GetHashCode();
+    }
 
-        /// <summary>
-        /// Tests inequality between two keys.
-        /// </summary>
-        /// <param name="a">The first key</param>
-        /// <param name="b">The second key</param>
-        /// <returns>True if the first key's time is less than the second key's.</returns>
-        public static bool operator <(QuaternionKey a, QuaternionKey b)
-        {
-            return a.Time < b.Time;
-        }
-
-        /// <summary>
-        /// Tests inequality between two keys.
-        /// </summary>
-        /// <param name="a">The first key</param>
-        /// <param name="b">The second key</param>
-        /// <returns>True if the first key's time is greater than the second key's.</returns>
-        public static bool operator >(QuaternionKey a, QuaternionKey b)
-        {
-            return a.Time > b.Time;
-        }
-
-        /// <summary>
-        /// Determines whether the specified <see cref="System.Object"/> is equal to this instance.
-        /// </summary>
-        /// <param name="obj">The <see cref="System.Object"/> to compare with this instance.</param>
-        /// <returns>
-        ///   <c>true</c> if the specified <see cref="System.Object"/> is equal to this instance; otherwise, <c>false</c>.
-        /// </returns>
-        public override bool Equals(object obj)
-        {
-            if(obj is QuaternionKey)
-            {
-                return Equals((QuaternionKey) obj);
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Tests equality between this key and another.
-        /// </summary>
-        /// <param name="key">Other key to test</param>
-        /// <returns>True if their rotations are equal.</returns>
-        public bool Equals(QuaternionKey key)
-        {
-            return Value == key.Value;
-        }
-
-        /// <summary>
-        /// Returns a hash code for this instance.
-        /// </summary>
-        /// <returns>
-        /// A hash code for this instance, suitable for use in hashing algorithms and data structures like a hash table. 
-        /// </returns>
-        public override int GetHashCode()
-        {
-            return Value.GetHashCode();
-        }
-
-        /// <summary>
-        /// Returns a <see cref="System.String"/> that represents this instance.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="System.String"/> that represents this instance.
-        /// </returns>
-        public override string ToString()
-        {
-            CultureInfo info = CultureInfo.CurrentCulture;
-            return String.Format(info, "{{Time:{0} Rotation:{1}}}",
-                new Object[] { Time.ToString(info), Value.ToString() });
-        }
+    /// <summary>
+    /// Returns a <see cref="System.String"/> that represents this instance.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="System.String"/> that represents this instance.
+    /// </returns>
+    public override string ToString()
+    {
+        var info = CultureInfo.CurrentCulture;
+        return string.Format(info, "{{Time:{0} Rotation:{1}}}",
+            new object[] { Time.ToString(info), Value.ToString() });
     }
 }

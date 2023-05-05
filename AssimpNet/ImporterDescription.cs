@@ -25,130 +25,65 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Assimp.Unmanaged;
 
-namespace Assimp
+namespace Assimp;
+
+/// <summary>
+/// Metadata and feature support information for a given importer.
+/// </summary>
+[DebuggerDisplay("{Name}")]
+public sealed class ImporterDescription
 {
     /// <summary>
-    /// Metadata and feature support information for a given importer.
+    /// Gets the name of the importer (e.g. Blender3D Importer)
     /// </summary>
-    [DebuggerDisplay("{Name}")]
-    public sealed class ImporterDescription
+    public string Name { get; }
+
+    /// <summary>
+    /// Gets the original author (blank if unknown or assimp team).
+    /// </summary>
+    public string Author { get; }
+
+    /// <summary>
+    /// Gets the name of the current maintainer, if empty then the author maintains.
+    /// </summary>
+    public string Maintainer { get; }
+
+    /// <summary>
+    /// Gets any implementation comments.
+    /// </summary>
+    public string Comments { get; }
+
+    /// <summary>
+    /// Gets the features supported by the importer.
+    /// </summary>
+    public ImporterFeatureFlags FeatureFlags { get; }
+
+    /// <summary>
+    /// Gets the minimum version of the file format supported. If no version scheme, forwards compatible, or importer doesn't care, major/min will be zero.
+    /// </summary>
+    public Version MinVersion { get; }
+
+    /// <summary>
+    /// Gets the maximum version of the file format supported. If no version scheme, forwards compatible, or importer doesn't care, major/min will be zero.
+    /// </summary>
+    public Version MaxVersion { get; }
+
+    /// <summary>
+    /// Gets the list of file extensions the importer can handle. All entries are lower case and do NOT have a leading dot.
+    /// </summary>
+    public string[] FileExtensions { get; }
+
+    internal ImporterDescription(in AiImporterDesc descr)
     {
-        private String m_name;
-        private String m_author;
-        private String m_maintainer;
-        private String m_comments;
-        private ImporterFeatureFlags m_featureFlags;
-        private Version m_minVersion;
-        private Version m_maxVersion;
-        private String[] m_fileExtensions;
+        Name = Marshal.PtrToStringAnsi(descr.Name);
+        Author = Marshal.PtrToStringAnsi(descr.Author);
+        Maintainer = Marshal.PtrToStringAnsi(descr.Maintainer);
+        Comments = Marshal.PtrToStringAnsi(descr.Comments);
+        FeatureFlags = descr.Flags;
+        MinVersion = new((int) descr.MinMajor, (int) descr.MinMinor);
+        MaxVersion = new((int) descr.MaxMajor, (int) descr.MaxMajor);
 
-        /// <summary>
-        /// Gets the name of the importer (e.g. Blender3D Importer)
-        /// </summary>
-        public String Name
-        {
-            get
-            {
-                return m_name;
-            }
-        }
-
-        /// <summary>
-        /// Gets the original author (blank if unknown or assimp team).
-        /// </summary>
-        public String Author
-        {
-            get
-            {
-                return m_author;
-            }
-        }
-
-        /// <summary>
-        /// Gets the name of the current maintainer, if empty then the author maintains.
-        /// </summary>
-        public String Maintainer
-        {
-            get
-            {
-                return m_maintainer;
-            }
-        }
-
-        /// <summary>
-        /// Gets any implementation comments.
-        /// </summary>
-        public String Comments
-        {
-            get
-            {
-                return m_comments;
-            }
-        }
-
-        /// <summary>
-        /// Gets the features supported by the importer.
-        /// </summary>
-        public ImporterFeatureFlags FeatureFlags
-        {
-            get
-            {
-                return m_featureFlags;
-            }
-        }
-
-        /// <summary>
-        /// Gets the minimum version of the file format supported. If no version scheme, forwards compatible, or importer doesn't care, major/min will be zero.
-        /// </summary>
-        public Version MinVersion
-        {
-            get
-            {
-                return m_minVersion;
-            }
-        }
-
-        /// <summary>
-        /// Gets the maximum version of the file format supported. If no version scheme, forwards compatible, or importer doesn't care, major/min will be zero.
-        /// </summary>
-        public Version MaxVersion
-        {
-            get
-            {
-                return m_maxVersion;
-            }
-        }
-
-        /// <summary>
-        /// Gets the list of file extensions the importer can handle. All entries are lower case and do NOT have a leading dot.
-        /// </summary>
-        public String[] FileExtensions
-        {
-            get
-            {
-                return m_fileExtensions;
-            }
-        }
-
-        internal ImporterDescription(in AiImporterDesc descr)
-        {
-            m_name = Marshal.PtrToStringAnsi(descr.Name);
-            m_author = Marshal.PtrToStringAnsi(descr.Author);
-            m_maintainer = Marshal.PtrToStringAnsi(descr.Maintainer);
-            m_comments = Marshal.PtrToStringAnsi(descr.Comments);
-            m_featureFlags = descr.Flags;
-            m_minVersion = new Version((int) descr.MinMajor, (int) descr.MinMinor);
-            m_maxVersion = new Version((int) descr.MaxMajor, (int) descr.MaxMajor);
-
-            String fileExts = Marshal.PtrToStringAnsi(descr.FileExtensions);
-            if(String.IsNullOrEmpty(fileExts))
-            {
-                m_fileExtensions = new String[0];
-            }
-            else
-            {
-                m_fileExtensions = fileExts.Split(' ');
-            }
-        }
+        var fileExts = Marshal.PtrToStringAnsi(descr.FileExtensions);
+        FileExtensions = string.IsNullOrEmpty(fileExts) ? Array.Empty<string>() : fileExts.Split(' ');
     }
 }

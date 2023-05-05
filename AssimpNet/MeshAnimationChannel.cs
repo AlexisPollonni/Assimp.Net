@@ -20,136 +20,103 @@
 * THE SOFTWARE.
 */
 
-using System;
 using System.Collections.Generic;
 using Assimp.Unmanaged;
 
-namespace Assimp
+namespace Assimp;
+
+/// <summary>
+/// Describes vertex-based animations for a single mesh or a group of meshes. Meshes
+/// carry the animation data for each frame. The purpose of this object is to define
+/// keyframes, linking each mesh attachment to a particular point in a time.
+/// </summary>
+public sealed class MeshAnimationChannel : IMarshalable<MeshAnimationChannel, AiMeshAnim>
 {
     /// <summary>
-    /// Describes vertex-based animations for a single mesh or a group of meshes. Meshes
-    /// carry the animation data for each frame. The purpose of this object is to define
-    /// keyframes, linking each mesh attachment to a particular point in a time.
+    /// Gets or sets the name of the mesh to be animated. Empty strings are not allowed,
+    /// animation meshes need to be named (not necessarily uniquely, the name can basically
+    /// serve as a wildcard to select a group of meshes with similar animation setup).
     /// </summary>
-    public sealed class MeshAnimationChannel : IMarshalable<MeshAnimationChannel, AiMeshAnim>
+    public string MeshName { get; set; }
+
+    /// <summary>
+    /// Gets the number of meshkeys in this animation channel. There will always
+    /// be at least one key.
+    /// </summary>
+    public int MeshKeyCount => MeshKeys.Count;
+
+    /// <summary>
+    /// Gets if this animation channel has mesh keys - this should always be true.
+    /// </summary>
+    public bool HasMeshKeys => MeshKeys.Count > 0;
+
+    /// <summary>
+    /// Gets the mesh keyframes of the animation. This should not be null.
+    /// </summary>
+    public List<MeshKey> MeshKeys { get; }
+
+    /// <summary>
+    /// Constructs a new instance of the <see cref="MeshAnimationChannel"/> class.
+    /// </summary>
+    public MeshAnimationChannel()
     {
-        private String m_name;
-        private List<MeshKey> m_meshKeys;
-
-        /// <summary>
-        /// Gets or sets the name of the mesh to be animated. Empty strings are not allowed,
-        /// animation meshes need to be named (not necessarily uniquely, the name can basically
-        /// serve as a wildcard to select a group of meshes with similar animation setup).
-        /// </summary>
-        public String MeshName
-        {
-            get
-            {
-                return m_name;
-            }
-            set
-            {
-                m_name = value;
-            }
-        }
-
-        /// <summary>
-        /// Gets the number of meshkeys in this animation channel. There will always
-        /// be at least one key.
-        /// </summary>
-        public int MeshKeyCount
-        {
-            get
-            {
-                return m_meshKeys.Count;
-            }
-        }
-
-        /// <summary>
-        /// Gets if this animation channel has mesh keys - this should always be true.
-        /// </summary>
-        public bool HasMeshKeys
-        {
-            get
-            {
-                return m_meshKeys.Count > 0;
-            }
-        }
-
-        /// <summary>
-        /// Gets the mesh keyframes of the animation. This should not be null.
-        /// </summary>
-        public List<MeshKey> MeshKeys
-        {
-            get
-            {
-                return m_meshKeys;
-            }
-        }
-
-        /// <summary>
-        /// Constructs a new instance of the <see cref="MeshAnimationChannel"/> class.
-        /// </summary>
-        public MeshAnimationChannel()
-        {
-            m_name = String.Empty;
-            m_meshKeys = new List<MeshKey>();
-        }
-
-        #region IMarshalable Implementation
-
-        /// <summary>
-        /// Gets if the native value type is blittable (that is, does not require marshaling by the runtime, e.g. has MarshalAs attributes).
-        /// </summary>
-        bool IMarshalable<MeshAnimationChannel, AiMeshAnim>.IsNativeBlittable { get { return true; } }
-
-        /// <summary>
-        /// Writes the managed data to the native value.
-        /// </summary>
-        /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
-        /// <param name="nativeValue">Output native value</param>
-        void IMarshalable<MeshAnimationChannel, AiMeshAnim>.ToNative(IntPtr thisPtr, out AiMeshAnim nativeValue)
-        {
-            nativeValue.Name = new AiString(m_name);
-            nativeValue.NumKeys = (uint) MeshKeyCount;
-            nativeValue.Keys = IntPtr.Zero;
-
-            if(nativeValue.NumKeys > 0)
-                nativeValue.Keys = MemoryHelper.ToNativeArray<MeshKey>(m_meshKeys.ToArray());
-        }
-
-        /// <summary>
-        /// Reads the unmanaged data from the native value.
-        /// </summary>
-        /// <param name="nativeValue">Input native value</param>
-        void IMarshalable<MeshAnimationChannel, AiMeshAnim>.FromNative(in AiMeshAnim nativeValue)
-        {
-            m_name = AiString.GetString(nativeValue.Name); //Avoid struct copy
-            m_meshKeys.Clear();
-
-            if(nativeValue.NumKeys > 0 && nativeValue.Keys != IntPtr.Zero)
-                m_meshKeys.AddRange(MemoryHelper.FromNativeArray<MeshKey>(nativeValue.Keys, (int) nativeValue.NumKeys));
-        }
-
-        /// <summary>
-        /// Frees unmanaged memory created by <see cref="IMarshalable{MeshAnimationChannel, AiMeshAnim}.ToNative"/>.
-        /// </summary>
-        /// <param name="nativeValue">Native value to free</param>
-        /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-        public static void FreeNative(IntPtr nativeValue, bool freeNative)
-        {
-            if(nativeValue == IntPtr.Zero)
-                return;
-
-            AiMeshAnim aiMeshAnim = MemoryHelper.Read<AiMeshAnim>(nativeValue);
-
-            if(aiMeshAnim.NumKeys > 0 && aiMeshAnim.Keys != IntPtr.Zero)
-                MemoryHelper.FreeMemory(aiMeshAnim.Keys);
-
-            if(freeNative)
-                MemoryHelper.FreeMemory(nativeValue);
-        }
-
-        #endregion
+        MeshName = string.Empty;
+        MeshKeys = new();
     }
+
+    #region IMarshalable Implementation
+
+    /// <summary>
+    /// Gets if the native value type is blittable (that is, does not require marshaling by the runtime, e.g. has MarshalAs attributes).
+    /// </summary>
+    bool IMarshalable<MeshAnimationChannel, AiMeshAnim>.IsNativeBlittable => true;
+
+    /// <summary>
+    /// Writes the managed data to the native value.
+    /// </summary>
+    /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
+    /// <param name="nativeValue">Output native value</param>
+    void IMarshalable<MeshAnimationChannel, AiMeshAnim>.ToNative(nint thisPtr, out AiMeshAnim nativeValue)
+    {
+        nativeValue.Name = new(MeshName);
+        nativeValue.NumKeys = (uint) MeshKeyCount;
+        nativeValue.Keys = nint.Zero;
+
+        if(nativeValue.NumKeys > 0)
+            nativeValue.Keys = MemoryHelper.ToNativeArray(MeshKeys.ToArray());
+    }
+
+    /// <summary>
+    /// Reads the unmanaged data from the native value.
+    /// </summary>
+    /// <param name="nativeValue">Input native value</param>
+    void IMarshalable<MeshAnimationChannel, AiMeshAnim>.FromNative(in AiMeshAnim nativeValue)
+    {
+        MeshName = AiString.GetString(nativeValue.Name); //Avoid struct copy
+        MeshKeys.Clear();
+
+        if(nativeValue.NumKeys > 0 && nativeValue.Keys != nint.Zero)
+            MeshKeys.AddRange(MemoryHelper.FromNativeArray<MeshKey>(nativeValue.Keys, (int) nativeValue.NumKeys));
+    }
+
+    /// <summary>
+    /// Frees unmanaged memory created by <see cref="IMarshalable{MeshAnimationChannel, AiMeshAnim}.ToNative"/>.
+    /// </summary>
+    /// <param name="nativeValue">Native value to free</param>
+    /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
+    public static void FreeNative(nint nativeValue, bool freeNative)
+    {
+        if(nativeValue == nint.Zero)
+            return;
+
+        var aiMeshAnim = MemoryHelper.Read<AiMeshAnim>(nativeValue);
+
+        if(aiMeshAnim.NumKeys > 0 && aiMeshAnim.Keys != nint.Zero)
+            MemoryHelper.FreeMemory(aiMeshAnim.Keys);
+
+        if(freeNative)
+            MemoryHelper.FreeMemory(nativeValue);
+    }
+
+    #endregion
 }

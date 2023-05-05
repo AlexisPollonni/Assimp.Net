@@ -24,2016 +24,1696 @@ using System;
 using System.Collections.Generic;
 using Assimp.Unmanaged;
 
-namespace Assimp
+namespace Assimp;
+
+/// <summary>
+/// A material contains all the information that describes how to render a mesh. E.g. textures, colors, and render states. Internally
+/// all this information is stored as key-value pair properties. The class contains many convienence methods and properties for
+/// accessing non-texture/texture properties without having to know the Assimp material key names. Not all properties may be present,
+/// and if they aren't a default value will be returned.
+/// </summary>
+public sealed class Material : IMarshalable<Material, AiMaterial>
 {
+    private readonly Dictionary<string, MaterialProperty> m_properties;
+
     /// <summary>
-    /// A material contains all the information that describes how to render a mesh. E.g. textures, colors, and render states. Internally
-    /// all this information is stored as key-value pair properties. The class contains many convienence methods and properties for
-    /// accessing non-texture/texture properties without having to know the Assimp material key names. Not all properties may be present,
-    /// and if they aren't a default value will be returned.
+    /// Gets the number of properties contained in the material.
     /// </summary>
-    public sealed class Material : IMarshalable<Material, AiMaterial>
+    public int PropertyCount => m_properties.Count;
+
+    #region Convienent non-texture properties
+
+    /// <summary>
+    /// Checks if the material has a name property.
+    /// </summary>
+    public bool HasName => HasProperty(AiMatKeys.NAME);
+
+    /// <summary>
+    /// Gets the material name value, if any. Default value is an empty string.
+    /// </summary>
+    public string Name
     {
-        private Dictionary<String, MaterialProperty> m_properties;
-        private PBRMaterialProperties m_pbrProperties;
-        private ShaderMaterialProperties m_shaderProperties;
+        get
+        {
+            var prop = GetProperty(AiMatKeys.NAME);
+            if(prop != null)
+                return prop.GetStringValue();
 
-        /// <summary>
-        /// Gets the number of properties contained in the material.
-        /// </summary>
-        public int PropertyCount
+            return string.Empty;
+        }
+        set
         {
-            get
+            var prop = GetProperty(AiMatKeys.NAME);
+
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.NAME_BASE, value);
+                AddProperty(prop);
+            }
+            else
             {
-                return m_properties.Count;
+                prop.SetStringValue(value);
             }
         }
+    }
 
-        #region Convienent non-texture properties
+    /// <summary>
+    /// Checks if the material has a two-sided property.
+    /// </summary>
+    public bool HasTwoSided => HasProperty(AiMatKeys.TWOSIDED);
 
-        /// <summary>
-        /// Checks if the material has a name property.
-        /// </summary>
-        public bool HasName
+    /// <summary>
+    /// Gets if the material should be rendered as two-sided. Default value is false.
+    /// </summary>
+    public bool IsTwoSided
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.NAME);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.TWOSIDED);
+            if(prop != null)
+                return prop.GetBooleanValue();
 
-        /// <summary>
-        /// Gets the material name value, if any. Default value is an empty string.
-        /// </summary>
-        public String Name
+            return false;
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.NAME);
-                if(prop != null)
-                    return prop.GetStringValue();
+            var prop = GetProperty(AiMatKeys.TWOSIDED);
 
-                return String.Empty;
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.TWOSIDED_BASE, value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.NAME);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.NAME_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetStringValue(value);
-                }
+                prop.SetBooleanValue(value);
             }
         }
+    }
 
-        /// <summary>
-        /// Checks if the material has a two-sided property.
-        /// </summary>
-        public bool HasTwoSided
+    /// <summary>
+    /// Checks if the material has a shading-mode property.
+    /// </summary>
+    public bool HasShadingMode => HasProperty(AiMatKeys.SHADING_MODEL);
+
+    /// <summary>
+    /// Gets the shading mode. Default value is <see cref="Assimp.ShadingMode.None"/>, meaning it is not defined.
+    /// </summary>
+    public ShadingMode ShadingMode
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.TWOSIDED);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.SHADING_MODEL);
+            if(prop != null)
+                return (ShadingMode) prop.GetIntegerValue();
 
-        /// <summary>
-        /// Gets if the material should be rendered as two-sided. Default value is false.
-        /// </summary>
-        public bool IsTwoSided
+            return ShadingMode.None;
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.TWOSIDED);
-                if(prop != null)
-                    return prop.GetBooleanValue();
+            var prop = GetProperty(AiMatKeys.SHADING_MODEL);
 
-                return false;
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.SHADING_MODEL_BASE, (int) value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.TWOSIDED);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.TWOSIDED_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetBooleanValue(value);
-                }
+                prop.SetIntegerValue((int) value);
             }
         }
+    }
+
+    /// <summary>
+    /// Checks if the material has a wireframe property.
+    /// </summary>
+    public bool HasWireFrame => HasProperty(AiMatKeys.ENABLE_WIREFRAME);
 
-        /// <summary>
-        /// Checks if the material has a shading-mode property.
-        /// </summary>
-        public bool HasShadingMode
+    /// <summary>
+    /// Gets if wireframe should be enabled. Default value is false.
+    /// </summary>
+    public bool IsWireFrameEnabled
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.SHADING_MODEL);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.ENABLE_WIREFRAME);
+            if(prop != null)
+                return prop.GetBooleanValue();
 
-        /// <summary>
-        /// Gets the shading mode. Default value is <see cref="Assimp.ShadingMode.None"/>, meaning it is not defined.
-        /// </summary>
-        public ShadingMode ShadingMode
+            return false;
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.SHADING_MODEL);
-                if(prop != null)
-                    return (ShadingMode) prop.GetIntegerValue();
+            var prop = GetProperty(AiMatKeys.ENABLE_WIREFRAME);
 
-                return ShadingMode.None;
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.ENABLE_WIREFRAME_BASE, value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.SHADING_MODEL);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.SHADING_MODEL_BASE, (int) value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetIntegerValue((int) value);
-                }
+                prop.SetBooleanValue(value);
             }
         }
+    }
+
+    /// <summary>
+    /// Checks if the material has a blend mode property.
+    /// </summary>
+    public bool HasBlendMode => HasProperty(AiMatKeys.BLEND_FUNC);
 
-        /// <summary>
-        /// Checks if the material has a wireframe property.
-        /// </summary>
-        public bool HasWireFrame
+    /// <summary>
+    /// Gets the blending mode. Default value is <see cref="Assimp.BlendMode.Default"/>.
+    /// </summary>
+    public BlendMode BlendMode
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.ENABLE_WIREFRAME);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.BLEND_FUNC);
+            if(prop != null)
+                return (BlendMode) prop.GetIntegerValue();
 
-        /// <summary>
-        /// Gets if wireframe should be enabled. Default value is false.
-        /// </summary>
-        public bool IsWireFrameEnabled
+            return BlendMode.Default;
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.ENABLE_WIREFRAME);
-                if(prop != null)
-                    return prop.GetBooleanValue();
+            var prop = GetProperty(AiMatKeys.BLEND_FUNC);
 
-                return false;
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.BLEND_FUNC_BASE, (int) value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.ENABLE_WIREFRAME);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.ENABLE_WIREFRAME_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetBooleanValue(value);
-                }
+                prop.SetIntegerValue((int) value);
             }
         }
+    }
 
-        /// <summary>
-        /// Checks if the material has a blend mode property.
-        /// </summary>
-        public bool HasBlendMode
+    /// <summary>
+    /// Checks if the material has an opacity property.
+    /// </summary>
+    public bool HasOpacity => HasProperty(AiMatKeys.OPACITY);
+
+    /// <summary>
+    /// Gets the opacity. Default value is 1.0f.
+    /// </summary>
+    public float Opacity
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.BLEND_FUNC);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.OPACITY);
+            if(prop != null)
+                return prop.GetFloatValue();
 
-        /// <summary>
-        /// Gets the blending mode. Default value is <see cref="Assimp.BlendMode.Default"/>.
-        /// </summary>
-        public BlendMode BlendMode
+            return 1.0f;
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.BLEND_FUNC);
-                if(prop != null)
-                    return (BlendMode) prop.GetIntegerValue();
+            var prop = GetProperty(AiMatKeys.OPACITY);
 
-                return BlendMode.Default;
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.OPACITY_BASE, value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.BLEND_FUNC);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.BLEND_FUNC_BASE, (int) value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetIntegerValue((int) value);
-                }
+                prop.SetFloatValue(value);
             }
         }
+    }
 
-        /// <summary>
-        /// Checks if the material has an opacity property.
-        /// </summary>
-        public bool HasOpacity
+    /// <summary>
+    /// Checks if the material has a transparency factor property.
+    /// </summary>
+    public bool HasTransparencyFactor => HasProperty(AiMatKeys.TRANSPARENCYFACTOR);
+
+    /// <summary>
+    /// Gets the transparency factor.  This is used to make a surface more or less opaque (0 = opaque, 1 = transparent). Default value is 0.0f.
+    /// </summary>
+    public float TransparencyFactor
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.OPACITY);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.TRANSPARENCYFACTOR);
+            if(prop != null)
+                return prop.GetFloatValue();
 
-        /// <summary>
-        /// Gets the opacity. Default value is 1.0f.
-        /// </summary>
-        public float Opacity
+            return 0.0f;
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.OPACITY);
-                if(prop != null)
-                    return prop.GetFloatValue();
+            var prop = GetProperty(AiMatKeys.TRANSPARENCYFACTOR);
 
-                return 1.0f;
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.TRANSPARENCYFACTOR_BASE, value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.OPACITY);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.OPACITY_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetFloatValue(value);
-                }
+                prop.SetFloatValue(value);
             }
         }
+    }
+
+    /// <summary>
+    /// Checks if the material has a bump scaling property.
+    /// </summary>
+    public bool HasBumpScaling => HasProperty(AiMatKeys.BUMPSCALING);
 
-        /// <summary>
-        /// Checks if the material has a transparency factor property.
-        /// </summary>
-        public bool HasTransparencyFactor
+    /// <summary>
+    /// Gets the bump scaling. Default value is 0.0f;
+    /// </summary>
+    public float BumpScaling
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.TRANSPARENCYFACTOR);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.BUMPSCALING);
+            if(prop != null)
+                return prop.GetFloatValue();
 
-        /// <summary>
-        /// Gets the transparency factor.  This is used to make a surface more or less opaque (0 = opaque, 1 = transparent). Default value is 0.0f.
-        /// </summary>
-        public float TransparencyFactor
+            return 0.0f;
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.TRANSPARENCYFACTOR);
-                if(prop != null)
-                    return prop.GetFloatValue();
+            var prop = GetProperty(AiMatKeys.BUMPSCALING);
 
-                return 0.0f;
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.BUMPSCALING_BASE, value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.TRANSPARENCYFACTOR);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.TRANSPARENCYFACTOR_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetFloatValue(value);
-                }
+                prop.SetFloatValue(value);
             }
         }
+    }
 
-        /// <summary>
-        /// Checks if the material has a bump scaling property.
-        /// </summary>
-        public bool HasBumpScaling
+    /// <summary>
+    /// Checks if the material has a shininess property.
+    /// </summary>
+    public bool HasShininess => HasProperty(AiMatKeys.SHININESS);
+
+    /// <summary>
+    /// Gets the shininess. Default value is 0.0f;
+    /// </summary>
+    public float Shininess
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.BUMPSCALING);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.SHININESS);
+            if(prop != null)
+                return prop.GetFloatValue();
 
-        /// <summary>
-        /// Gets the bump scaling. Default value is 0.0f;
-        /// </summary>
-        public float BumpScaling
+            return 0.0f;
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.BUMPSCALING);
-                if(prop != null)
-                    return prop.GetFloatValue();
+            var prop = GetProperty(AiMatKeys.SHININESS);
 
-                return 0.0f;
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.SHININESS_BASE, value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.BUMPSCALING);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.BUMPSCALING_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetFloatValue(value);
-                }
+                prop.SetFloatValue(value);
             }
         }
+    }
+
+    /// <summary>
+    /// Checks if the material has a shininess strength property.
+    /// </summary>
+    public bool HasShininessStrength => HasProperty(AiMatKeys.SHININESS_STRENGTH);
 
-        /// <summary>
-        /// Checks if the material has a shininess property.
-        /// </summary>
-        public bool HasShininess
+    /// <summary>
+    /// Gets the shininess strength. Default vaulue is 1.0f.
+    /// </summary>
+    public float ShininessStrength
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.SHININESS);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.SHININESS_STRENGTH);
+            if(prop != null)
+                return prop.GetFloatValue();
 
-        /// <summary>
-        /// Gets the shininess. Default value is 0.0f;
-        /// </summary>
-        public float Shininess
+            return 1.0f;
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.SHININESS);
-                if(prop != null)
-                    return prop.GetFloatValue();
+            var prop = GetProperty(AiMatKeys.SHININESS_STRENGTH);
 
-                return 0.0f;
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.SHININESS_STRENGTH_BASE, value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.SHININESS);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.SHININESS_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetFloatValue(value);
-                }
+                prop.SetFloatValue(value);
             }
         }
+    }
+
+    /// <summary>
+    /// Checks if the material has a reflectivty property.
+    /// </summary>
+    public bool HasReflectivity => HasProperty(AiMatKeys.REFLECTIVITY);
 
-        /// <summary>
-        /// Checks if the material has a shininess strength property.
-        /// </summary>
-        public bool HasShininessStrength
+
+    /// <summary>
+    /// Gets the reflectivity. Default value is 0.0f;
+    /// </summary>
+    public float Reflectivity
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.SHININESS_STRENGTH);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.REFLECTIVITY);
+            if(prop != null)
+                return prop.GetFloatValue();
 
-        /// <summary>
-        /// Gets the shininess strength. Default vaulue is 1.0f.
-        /// </summary>
-        public float ShininessStrength
+            return 0.0f;
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.SHININESS_STRENGTH);
-                if(prop != null)
-                    return prop.GetFloatValue();
+            var prop = GetProperty(AiMatKeys.REFLECTIVITY);
 
-                return 1.0f;
-            }
-            set
+            if(prop == null)
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.SHININESS_STRENGTH);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.SHININESS_STRENGTH_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetFloatValue(value);
-                }
+                prop = new(AiMatKeys.REFLECTIVITY_BASE, value);
+                AddProperty(prop);
             }
-        }
-
-        /// <summary>
-        /// Checks if the material has a reflectivty property.
-        /// </summary>
-        public bool HasReflectivity
-        {
-            get
+            else
             {
-                return HasProperty(AiMatKeys.REFLECTIVITY);
+                prop.SetFloatValue(value);
             }
         }
+    }
 
+    /// <summary>
+    /// Checks if the material has a color diffuse property.
+    /// </summary>
+    public bool HasColorDiffuse => HasProperty(AiMatKeys.COLOR_DIFFUSE);
 
-        /// <summary>
-        /// Gets the reflectivity. Default value is 0.0f;
-        /// </summary>
-        public float Reflectivity
+    /// <summary>
+    /// Gets the color diffuse. Default value is white.
+    /// </summary>
+    public Color4D ColorDiffuse
+    {
+        get
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.REFLECTIVITY);
-                if(prop != null)
-                    return prop.GetFloatValue();
-
-                return 0.0f;
-            }
-            set
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.REFLECTIVITY);
+            var prop = GetProperty(AiMatKeys.COLOR_DIFFUSE);
+            if(prop != null)
+                return prop.GetColor4DValue();
 
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.REFLECTIVITY_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetFloatValue(value);
-                }
-            }
+            return new(1.0f, 1.0f, 1.0f, 1.0f);
         }
-
-        /// <summary>
-        /// Checks if the material has a color diffuse property.
-        /// </summary>
-        public bool HasColorDiffuse
+        set
         {
-            get
-            {
-                return HasProperty(AiMatKeys.COLOR_DIFFUSE);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.COLOR_DIFFUSE);
 
-        /// <summary>
-        /// Gets the color diffuse. Default value is white.
-        /// </summary>
-        public Color4D ColorDiffuse
-        {
-            get
+            if(prop == null)
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.COLOR_DIFFUSE);
-                if(prop != null)
-                    return prop.GetColor4DValue();
-
-                return new Color4D(1.0f, 1.0f, 1.0f, 1.0f);
+                prop = new(AiMatKeys.COLOR_DIFFUSE_BASE, value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.COLOR_DIFFUSE);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.COLOR_DIFFUSE_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetColor4DValue(value);
-                }
+                prop.SetColor4DValue(value);
             }
         }
+    }
+
+    /// <summary>
+    /// Checks if the material has a color ambient property.
+    /// </summary>
+    public bool HasColorAmbient => HasProperty(AiMatKeys.COLOR_AMBIENT);
 
-        /// <summary>
-        /// Checks if the material has a color ambient property.
-        /// </summary>
-        public bool HasColorAmbient
+    /// <summary>
+    /// Gets the color ambient. Default value is (.2f, .2f, .2f, 1.0f).
+    /// </summary>
+    public Color4D ColorAmbient
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.COLOR_AMBIENT);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.COLOR_AMBIENT);
+            if(prop != null)
+                return prop.GetColor4DValue();
 
-        /// <summary>
-        /// Gets the color ambient. Default value is (.2f, .2f, .2f, 1.0f).
-        /// </summary>
-        public Color4D ColorAmbient
+            return new(.2f, .2f, .2f, 1.0f);
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.COLOR_AMBIENT);
-                if(prop != null)
-                    return prop.GetColor4DValue();
+            var prop = GetProperty(AiMatKeys.COLOR_AMBIENT);
 
-                return new Color4D(.2f, .2f, .2f, 1.0f);
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.COLOR_AMBIENT_BASE, value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.COLOR_AMBIENT);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.COLOR_AMBIENT_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetColor4DValue(value);
-                }
+                prop.SetColor4DValue(value);
             }
         }
+    }
 
-        /// <summary>
-        /// Checks if the material has a color specular property.
-        /// </summary>
-        public bool HasColorSpecular
+    /// <summary>
+    /// Checks if the material has a color specular property.
+    /// </summary>
+    public bool HasColorSpecular => HasProperty(AiMatKeys.COLOR_SPECULAR);
+
+    /// <summary>
+    /// Gets the color specular. Default value is black.
+    /// </summary>
+    public Color4D ColorSpecular
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.COLOR_SPECULAR);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.COLOR_SPECULAR);
+            if(prop != null)
+                return prop.GetColor4DValue();
 
-        /// <summary>
-        /// Gets the color specular. Default value is black.
-        /// </summary>
-        public Color4D ColorSpecular
+            return new(0, 0, 0, 1.0f);
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.COLOR_SPECULAR);
-                if(prop != null)
-                    return prop.GetColor4DValue();
+            var prop = GetProperty(AiMatKeys.COLOR_SPECULAR);
 
-                return new Color4D(0, 0, 0, 1.0f);
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.COLOR_SPECULAR_BASE, value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.COLOR_SPECULAR);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.COLOR_SPECULAR_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetColor4DValue(value);
-                }
+                prop.SetColor4DValue(value);
             }
         }
+    }
 
-        /// <summary>
-        /// Checks if the material has a color emissive property.
-        /// </summary>
-        public bool HasColorEmissive
+    /// <summary>
+    /// Checks if the material has a color emissive property.
+    /// </summary>
+    public bool HasColorEmissive => HasProperty(AiMatKeys.COLOR_EMISSIVE);
+
+    /// <summary>
+    /// Gets the color emissive. Default value is black.
+    /// </summary>
+    public Color4D ColorEmissive
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.COLOR_EMISSIVE);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.COLOR_EMISSIVE);
+            if(prop != null)
+                return prop.GetColor4DValue();
 
-        /// <summary>
-        /// Gets the color emissive. Default value is black.
-        /// </summary>
-        public Color4D ColorEmissive
+            return new(0, 0, 0, 1.0f);
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.COLOR_EMISSIVE);
-                if(prop != null)
-                    return prop.GetColor4DValue();
+            var prop = GetProperty(AiMatKeys.COLOR_EMISSIVE);
 
-                return new Color4D(0, 0, 0, 1.0f);
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.COLOR_EMISSIVE_BASE, value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.COLOR_EMISSIVE);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.COLOR_EMISSIVE_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetColor4DValue(value);
-                }
+                prop.SetColor4DValue(value);
             }
         }
+    }
+
+    /// <summary>
+    /// Checks if the material has a color transparent property.
+    /// </summary>
+    public bool HasColorTransparent => HasProperty(AiMatKeys.COLOR_TRANSPARENT);
 
-        /// <summary>
-        /// Checks if the material has a color transparent property.
-        /// </summary>
-        public bool HasColorTransparent
+    /// <summary>
+    /// Gets the color transparent. Default value is black.
+    /// </summary>
+    public Color4D ColorTransparent
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.COLOR_TRANSPARENT);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.COLOR_TRANSPARENT);
+            if(prop != null)
+                return prop.GetColor4DValue();
 
-        /// <summary>
-        /// Gets the color transparent. Default value is black.
-        /// </summary>
-        public Color4D ColorTransparent
+            return new(0, 0, 0, 1.0f);
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.COLOR_TRANSPARENT);
-                if(prop != null)
-                    return prop.GetColor4DValue();
+            var prop = GetProperty(AiMatKeys.COLOR_TRANSPARENT);
 
-                return new Color4D(0, 0, 0, 1.0f);
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.COLOR_TRANSPARENT_BASE, value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.COLOR_TRANSPARENT);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.COLOR_TRANSPARENT_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetColor4DValue(value);
-                }
+                prop.SetColor4DValue(value);
             }
         }
+    }
 
-        /// <summary>
-        /// Checks if the material has a color reflective property.
-        /// </summary>
-        public bool HasColorReflective
+    /// <summary>
+    /// Checks if the material has a color reflective property.
+    /// </summary>
+    public bool HasColorReflective => HasProperty(AiMatKeys.COLOR_REFLECTIVE);
+
+    /// <summary>
+    /// Gets the color reflective. Default value is black.
+    /// </summary>
+    public Color4D ColorReflective
+    {
+        get
         {
-            get
-            {
-                return HasProperty(AiMatKeys.COLOR_REFLECTIVE);
-            }
-        }
+            var prop = GetProperty(AiMatKeys.COLOR_REFLECTIVE);
+            if(prop != null)
+                return prop.GetColor4DValue();
 
-        /// <summary>
-        /// Gets the color reflective. Default value is black.
-        /// </summary>
-        public Color4D ColorReflective
+            return new(0, 0, 0, 1.0f);
+        }
+        set
         {
-            get
-            {
-                MaterialProperty prop = GetProperty(AiMatKeys.COLOR_REFLECTIVE);
-                if(prop != null)
-                    return prop.GetColor4DValue();
+            var prop = GetProperty(AiMatKeys.COLOR_REFLECTIVE);
 
-                return new Color4D(0, 0, 0, 1.0f);
+            if(prop == null)
+            {
+                prop = new(AiMatKeys.COLOR_REFLECTIVE_BASE, value);
+                AddProperty(prop);
             }
-            set
+            else
             {
-                MaterialProperty prop = GetProperty(AiMatKeys.COLOR_REFLECTIVE);
-
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(AiMatKeys.COLOR_REFLECTIVE_BASE, value);
-                    AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetColor4DValue(value);
-                }
+                prop.SetColor4DValue(value);
             }
         }
+    }
 
-        #endregion
+    #endregion
 
-        #region Convienent texture properties
+    #region Convienent texture properties
 
-        /// <summary>
-        /// Gets if the material has a diffuse texture in the first texture index.
-        /// </summary>
-        public bool HasTextureDiffuse
-        {
-            get
-            {
-                return HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Diffuse, 0);
-            }
-        }
+    /// <summary>
+    /// Gets if the material has a diffuse texture in the first texture index.
+    /// </summary>
+    public bool HasTextureDiffuse => HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Diffuse, 0);
 
-        /// <summary>
-        /// Gets or sets diffuse texture properties in the first texture index.
-        /// </summary>
-        public TextureSlot TextureDiffuse
+    /// <summary>
+    /// Gets or sets diffuse texture properties in the first texture index.
+    /// </summary>
+    public TextureSlot TextureDiffuse
+    {
+        get
         {
-            get
-            {
-                TextureSlot tex;
-                GetMaterialTexture(TextureType.Diffuse, 0, out tex);
+            GetMaterialTexture(TextureType.Diffuse, 0, out var tex);
 
-                return tex;
-            }
-            set
-            {
-                if(value.TextureIndex == 0 && value.TextureType == TextureType.Diffuse)
-                    AddMaterialTexture(value);
-            }
+            return tex;
         }
-
-        /// <summary>
-        /// Gets if the material has a specular texture in the first texture index.
-        /// </summary>
-        public bool HasTextureSpecular
+        set
         {
-            get
-            {
-                return HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Specular, 0);
-            }
+            if(value is {TextureIndex: 0, TextureType: TextureType.Diffuse})
+                AddMaterialTexture(value);
         }
+    }
 
-        /// <summary>
-        /// Gets or sets specular texture properties in the first texture index.
-        /// </summary>
-        public TextureSlot TextureSpecular
+    /// <summary>
+    /// Gets if the material has a specular texture in the first texture index.
+    /// </summary>
+    public bool HasTextureSpecular => HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Specular, 0);
+
+    /// <summary>
+    /// Gets or sets specular texture properties in the first texture index.
+    /// </summary>
+    public TextureSlot TextureSpecular
+    {
+        get
         {
-            get
-            {
-                TextureSlot tex;
-                GetMaterialTexture(TextureType.Specular, 0, out tex);
+            GetMaterialTexture(TextureType.Specular, 0, out var tex);
 
-                return tex;
-            }
-            set
-            {
-                if(value.TextureIndex == 0 && value.TextureType == TextureType.Specular)
-                    AddMaterialTexture(value);
-            }
+            return tex;
         }
-
-        /// <summary>
-        /// Gets if the material has a ambient texture in the first texture index.
-        /// </summary>
-        public bool HasTextureAmbient
+        set
         {
-            get
-            {
-                return HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Ambient, 0);
-            }
+            if(value is {TextureIndex: 0, TextureType: TextureType.Specular})
+                AddMaterialTexture(value);
         }
+    }
+
+    /// <summary>
+    /// Gets if the material has a ambient texture in the first texture index.
+    /// </summary>
+    public bool HasTextureAmbient => HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Ambient, 0);
 
-        /// <summary>
-        /// Gets or sets ambient texture properties in the first texture index.
-        /// </summary>
-        public TextureSlot TextureAmbient
+    /// <summary>
+    /// Gets or sets ambient texture properties in the first texture index.
+    /// </summary>
+    public TextureSlot TextureAmbient
+    {
+        get
         {
-            get
-            {
-                TextureSlot tex;
-                GetMaterialTexture(TextureType.Ambient, 0, out tex);
+            GetMaterialTexture(TextureType.Ambient, 0, out var tex);
 
-                return tex;
-            }
-            set
-            {
-                if(value.TextureIndex == 0 && value.TextureType == TextureType.Ambient)
-                    AddMaterialTexture(value);
-            }
+            return tex;
         }
-
-        /// <summary>
-        /// Gets if the material has a emissive texture in the first texture index.
-        /// </summary>
-        public bool HasTextureEmissive
+        set
         {
-            get
-            {
-                return HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Emissive, 0);
-            }
+            if(value is {TextureIndex: 0, TextureType: TextureType.Ambient})
+                AddMaterialTexture(value);
         }
+    }
 
-        /// <summary>
-        /// Gets or sets emissive texture properties in the first texture index.
-        /// </summary>
-        public TextureSlot TextureEmissive
+    /// <summary>
+    /// Gets if the material has a emissive texture in the first texture index.
+    /// </summary>
+    public bool HasTextureEmissive => HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Emissive, 0);
+
+    /// <summary>
+    /// Gets or sets emissive texture properties in the first texture index.
+    /// </summary>
+    public TextureSlot TextureEmissive
+    {
+        get
         {
-            get
-            {
-                TextureSlot tex;
-                GetMaterialTexture(TextureType.Emissive, 0, out tex);
+            GetMaterialTexture(TextureType.Emissive, 0, out var tex);
 
-                return tex;
-            }
-            set
-            {
-                if(value.TextureIndex == 0 && value.TextureType == TextureType.Emissive)
-                    AddMaterialTexture(value);
-            }
+            return tex;
         }
-
-        /// <summary>
-        /// Gets if the material has a height texture in the first texture index.
-        /// </summary>
-        public bool HasTextureHeight
+        set
         {
-            get
-            {
-                return HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Height, 0);
-            }
+            if(value is {TextureIndex: 0, TextureType: TextureType.Emissive})
+                AddMaterialTexture(value);
         }
+    }
+
+    /// <summary>
+    /// Gets if the material has a height texture in the first texture index.
+    /// </summary>
+    public bool HasTextureHeight => HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Height, 0);
 
-        /// <summary>
-        /// Gets or sets height texture properties in the first texture index.
-        /// </summary>
-        public TextureSlot TextureHeight
+    /// <summary>
+    /// Gets or sets height texture properties in the first texture index.
+    /// </summary>
+    public TextureSlot TextureHeight
+    {
+        get
         {
-            get
-            {
-                TextureSlot tex;
-                GetMaterialTexture(TextureType.Height, 0, out tex);
+            GetMaterialTexture(TextureType.Height, 0, out var tex);
 
-                return tex;
-            }
-            set
-            {
-                if(value.TextureIndex == 0 && value.TextureType == TextureType.Height)
-                    AddMaterialTexture(value);
-            }
+            return tex;
         }
-
-        /// <summary>
-        /// Gets if the material has a normal texture in the first texture index.
-        /// </summary>
-        public bool HasTextureNormal
+        set
         {
-            get
-            {
-                return HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Normals, 0);
-            }
+            if(value is {TextureIndex: 0, TextureType: TextureType.Height})
+                AddMaterialTexture(value);
         }
+    }
+
+    /// <summary>
+    /// Gets if the material has a normal texture in the first texture index.
+    /// </summary>
+    public bool HasTextureNormal => HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Normals, 0);
 
-        /// <summary>
-        /// Gets or sets normal texture properties in the first texture index.
-        /// </summary>
-        public TextureSlot TextureNormal
+    /// <summary>
+    /// Gets or sets normal texture properties in the first texture index.
+    /// </summary>
+    public TextureSlot TextureNormal
+    {
+        get
         {
-            get
-            {
-                TextureSlot tex;
-                GetMaterialTexture(TextureType.Normals, 0, out tex);
+            GetMaterialTexture(TextureType.Normals, 0, out var tex);
 
-                return tex;
-            }
-            set
-            {
-                if(value.TextureIndex == 0 && value.TextureType == TextureType.Normals)
-                    AddMaterialTexture(value);
-            }
+            return tex;
         }
-
-        /// <summary>
-        /// Gets if the material has an opacity texture in the first texture index.
-        /// </summary>
-        public bool HasTextureOpacity
+        set
         {
-            get
-            {
-                return HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Opacity, 0);
-            }
+            if(value is {TextureIndex: 0, TextureType: TextureType.Normals})
+                AddMaterialTexture(value);
         }
+    }
 
-        /// <summary>
-        /// Gets or sets opacity texture properties in the first texture index.
-        /// </summary>
-        public TextureSlot TextureOpacity
+    /// <summary>
+    /// Gets if the material has an opacity texture in the first texture index.
+    /// </summary>
+    public bool HasTextureOpacity => HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Opacity, 0);
+
+    /// <summary>
+    /// Gets or sets opacity texture properties in the first texture index.
+    /// </summary>
+    public TextureSlot TextureOpacity
+    {
+        get
         {
-            get
-            {
-                TextureSlot tex;
-                GetMaterialTexture(TextureType.Opacity, 0, out tex);
+            GetMaterialTexture(TextureType.Opacity, 0, out var tex);
 
-                return tex;
-            }
-            set
-            {
-                if(value.TextureIndex == 0 && value.TextureType == TextureType.Opacity)
-                    AddMaterialTexture(value);
-            }
+            return tex;
         }
-
-        /// <summary>
-        /// Gets if the material has a displacement texture in the first texture index.
-        /// </summary>
-        public bool HasTextureDisplacement
+        set
         {
-            get
-            {
-                return HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Displacement, 0);
-            }
+            if(value is {TextureIndex: 0, TextureType: TextureType.Opacity})
+                AddMaterialTexture(value);
         }
+    }
+
+    /// <summary>
+    /// Gets if the material has a displacement texture in the first texture index.
+    /// </summary>
+    public bool HasTextureDisplacement => HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Displacement, 0);
 
-        /// <summary>
-        /// Gets or sets displacement texture properties in the first texture index.
-        /// </summary>
-        public TextureSlot TextureDisplacement
+    /// <summary>
+    /// Gets or sets displacement texture properties in the first texture index.
+    /// </summary>
+    public TextureSlot TextureDisplacement
+    {
+        get
         {
-            get
-            {
-                TextureSlot tex;
-                GetMaterialTexture(TextureType.Displacement, 0, out tex);
+            GetMaterialTexture(TextureType.Displacement, 0, out var tex);
 
-                return tex;
-            }
-            set
-            {
-                if(value.TextureIndex == 0 && value.TextureType == TextureType.Displacement)
-                    AddMaterialTexture(value);
-            }
+            return tex;
         }
-
-        /// <summary>
-        /// Gets if the material has a light map texture in the first texture index.
-        /// </summary>
-        public bool HasTextureLightMap
+        set
         {
-            get
-            {
-                return HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Lightmap, 0);
-            }
+            if(value is {TextureIndex: 0, TextureType: TextureType.Displacement})
+                AddMaterialTexture(value);
         }
+    }
 
-        /// <summary>
-        /// Gets or sets light map texture properties in the first texture index.
-        /// </summary>
-        public TextureSlot TextureLightMap
+    /// <summary>
+    /// Gets if the material has a light map texture in the first texture index.
+    /// </summary>
+    public bool HasTextureLightMap => HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Lightmap, 0);
+
+    /// <summary>
+    /// Gets or sets light map texture properties in the first texture index.
+    /// </summary>
+    public TextureSlot TextureLightMap
+    {
+        get
         {
-            get
-            {
-                TextureSlot tex;
-                GetMaterialTexture(TextureType.Lightmap, 0, out tex);
+            GetMaterialTexture(TextureType.Lightmap, 0, out var tex);
 
-                return tex;
-            }
-            set
-            {
-                if(value.TextureIndex == 0 && value.TextureType == TextureType.Lightmap)
-                    AddMaterialTexture(value);
-            }
+            return tex;
         }
-
-        /// <summary>
-        /// Gets if the material has an ambient occlusion map in in the first texture index.
-        /// </summary>
-        public bool HasTextureAmbientOcclusion
+        set
         {
-            get
-            {
-                return HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.AmbientOcclusion, 0);
-            }
+            if(value is {TextureIndex: 0, TextureType: TextureType.Lightmap})
+                AddMaterialTexture(value);
         }
+    }
 
-        /// <summary>
-        /// Gets or sets ambient occlusion texture properties in the first texture index.
-        /// </summary>
-        public TextureSlot TextureAmbientOcclusion
+    /// <summary>
+    /// Gets if the material has an ambient occlusion map in in the first texture index.
+    /// </summary>
+    public bool HasTextureAmbientOcclusion => HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.AmbientOcclusion, 0);
+
+    /// <summary>
+    /// Gets or sets ambient occlusion texture properties in the first texture index.
+    /// </summary>
+    public TextureSlot TextureAmbientOcclusion
+    {
+        get
         {
-            get
-            {
-                TextureSlot tex;
-                GetMaterialTexture(TextureType.AmbientOcclusion, 0, out tex);
+            GetMaterialTexture(TextureType.AmbientOcclusion, 0, out var tex);
 
-                return tex;
-            }
-            set
-            {
-                if(value.TextureIndex == 0 && value.TextureType == TextureType.AmbientOcclusion)
-                    AddMaterialTexture(value);
-            }
+            return tex;
         }
-
-        /// <summary>
-        /// Gets if the material has a reflection texture in the first texture index.
-        /// </summary>
-        public bool HasTextureReflection
+        set
         {
-            get
-            {
-                return HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Reflection, 0);
-            }
+            if(value is {TextureIndex: 0, TextureType: TextureType.AmbientOcclusion})
+                AddMaterialTexture(value);
         }
+    }
 
-        /// <summary>
-        /// Gets or sets reflection texture properties in the first texture index.
-        /// </summary>
-        public TextureSlot TextureReflection
+    /// <summary>
+    /// Gets if the material has a reflection texture in the first texture index.
+    /// </summary>
+    public bool HasTextureReflection => HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Reflection, 0);
+
+    /// <summary>
+    /// Gets or sets reflection texture properties in the first texture index.
+    /// </summary>
+    public TextureSlot TextureReflection
+    {
+        get
         {
-            get
-            {
-                TextureSlot tex;
-                GetMaterialTexture(TextureType.Reflection, 0, out tex);
+            GetMaterialTexture(TextureType.Reflection, 0, out var tex);
 
-                return tex;
-            }
-            set
-            {
-                if(value.TextureIndex == 0 && value.TextureType == TextureType.Reflection)
-                    AddMaterialTexture(value);
-            }
+            return tex;
+        }
+        set
+        {
+            if(value is {TextureIndex: 0, TextureType: TextureType.Reflection})
+                AddMaterialTexture(value);
         }
+    }
 
-        #endregion
+    #endregion
 
-        #region PBR Properties
+    #region PBR Properties
 
-        /// <summary>
-        /// Determines if the material is part of a PBR workflow or not.
-        /// </summary>
-        public bool IsPBRMaterial
+    /// <summary>
+    /// Determines if the material is part of a PBR workflow or not.
+    /// </summary>
+    public bool IsPBRMaterial
+    {
+        get
         {
-            get
-            {
-                PBRMaterialProperties pbr = m_pbrProperties;
-                return pbr.HasTextureBaseColor || pbr.HasTextureMetalness || pbr.HasTextureRoughness || pbr.HasTextureNormalCamera || pbr.HasTextureEmissionColor;
-            }
+            var pbr = PBR;
+            return pbr.HasTextureBaseColor || pbr.HasTextureMetalness || pbr.HasTextureRoughness || pbr.HasTextureNormalCamera || pbr.HasTextureEmissionColor;
         }
+    }
 
-        /// <summary>
-        /// Gets a group accessor for any PBR properties in the material.
-        /// </summary>
-        public PBRMaterialProperties PBR
-        {
-            get
-            {
-                return m_pbrProperties;
-            }
-        }
+    /// <summary>
+    /// Gets a group accessor for any PBR properties in the material.
+    /// </summary>
+    public PBRMaterialProperties PBR { get; }
 
-        #endregion
+    #endregion
 
-        #region Shader Properties
+    #region Shader Properties
 
-        /// <summary>
-        /// Gets if the material has embedded shader source code.
-        /// </summary>
-        public bool HasShaders
+    /// <summary>
+    /// Gets if the material has embedded shader source code.
+    /// </summary>
+    public bool HasShaders
+    {
+        get
         {
-            get
-            {
-                ShaderMaterialProperties shaders = m_shaderProperties;
-                return shaders.HasShaderLanguageType && (shaders.HasVertexShader || shaders.HasFragmentShader || shaders.HasGeometryShader || shaders.HasTesselationShader || shaders.HasPrimitiveShader || shaders.HasComputeShader);
-            }
+            var shaders = Shaders;
+            return shaders.HasShaderLanguageType && (shaders.HasVertexShader || shaders.HasFragmentShader || shaders.HasGeometryShader || shaders.HasTesselationShader || shaders.HasPrimitiveShader || shaders.HasComputeShader);
         }
+    }
 
-        /// <summary>
-        /// Gets a group accessor for any embedded shader source code in the material.
-        /// </summary>
-        public ShaderMaterialProperties Shaders
-        {
-            get
-            {
-                return m_shaderProperties;
-            }
-        }
+    /// <summary>
+    /// Gets a group accessor for any embedded shader source code in the material.
+    /// </summary>
+    public ShaderMaterialProperties Shaders { get; }
+
+    #endregion
+
+    /// <summary>
+    /// Constructs a new instance of the <see cref="Material"/> class.
+    /// </summary>
+    public Material()
+    {
+        m_properties = new();
+        PBR = new(this);
+        Shaders = new(this);
+    }
 
-        #endregion
+    /// <summary>
+    /// Helper method to construct a fully qualified name from the input parameters. All the input parameters are combined into the fully qualified name: {baseName},{texType},{texIndex}. E.g.
+    /// "$clr.diffuse,0,0" or "$tex.file,1,0". This is the name that is used as the material dictionary key.
+    /// </summary>
+    /// <param name="baseName">Key basename, this must not be null or empty</param>
+    /// <param name="texType">Texture type; non-texture properties should leave this <see cref="TextureType.None"/></param>
+    /// <param name="texIndex">Texture index; non-texture properties should leave this zero.</param>
+    /// <returns>The fully qualified name</returns>
+    public static string CreateFullyQualifiedName(string baseName, TextureType texType, int texIndex)
+    {
+        if(string.IsNullOrEmpty(baseName))
+            return string.Empty;
 
-        /// <summary>
-        /// Constructs a new instance of the <see cref="Material"/> class.
-        /// </summary>
-        public Material()
+        return $"{baseName},{(int) texType},{texIndex}";
+    }
+
+    /// <summary>
+    /// Gets the non-texture properties contained in this Material. The name should be
+    /// the "base name", as in it should not contain texture type/texture index information. E.g. "$clr.diffuse" rather than "$clr.diffuse,0,0". The extra
+    /// data will be filled in automatically.
+    /// </summary>
+    /// <param name="baseName">Key basename</param>
+    /// <returns>The material property, if it exists</returns>
+    public MaterialProperty GetNonTextureProperty(string baseName)
+    {
+        if(string.IsNullOrEmpty(baseName))
         {
-            m_properties = new Dictionary<String, MaterialProperty>();
-            m_pbrProperties = new PBRMaterialProperties(this);
-            m_shaderProperties = new ShaderMaterialProperties(this);
+            return null;
         }
+        var fullyQualifiedName = CreateFullyQualifiedName(baseName, TextureType.None, 0);
+        return GetProperty(fullyQualifiedName);
+    }
 
-        /// <summary>
-        /// Helper method to construct a fully qualified name from the input parameters. All the input parameters are combined into the fully qualified name: {baseName},{texType},{texIndex}. E.g.
-        /// "$clr.diffuse,0,0" or "$tex.file,1,0". This is the name that is used as the material dictionary key.
-        /// </summary>
-        /// <param name="baseName">Key basename, this must not be null or empty</param>
-        /// <param name="texType">Texture type; non-texture properties should leave this <see cref="TextureType.None"/></param>
-        /// <param name="texIndex">Texture index; non-texture properties should leave this zero.</param>
-        /// <returns>The fully qualified name</returns>
-        public static String CreateFullyQualifiedName(String baseName, TextureType texType, int texIndex)
+    /// <summary>
+    /// Gets the material property. All the input parameters are combined into the fully qualified name: {baseName},{texType},{texIndex}. E.g.
+    /// "$clr.diffuse,0,0" or "$tex.file,1,0".
+    /// </summary>
+    /// <param name="baseName">Key basename</param>
+    /// <param name="texType">Texture type; non-texture properties should leave this <see cref="TextureType.None"/></param>
+    /// <param name="texIndex">Texture index; non-texture properties should leave this zero.</param>
+    /// <returns>The material property, if it exists</returns>
+    public MaterialProperty GetProperty(string baseName, TextureType texType, int texIndex)
+    {
+        if(string.IsNullOrEmpty(baseName))
         {
-            if(String.IsNullOrEmpty(baseName))
-                return String.Empty;
-
-            return String.Format("{0},{1},{2}", baseName, (int) texType, texIndex);
+            return null;
         }
+        var fullyQualifiedName = CreateFullyQualifiedName(baseName, texType, texIndex);
+        return GetProperty(fullyQualifiedName);
+    }
 
-        /// <summary>
-        /// Gets the non-texture properties contained in this Material. The name should be
-        /// the "base name", as in it should not contain texture type/texture index information. E.g. "$clr.diffuse" rather than "$clr.diffuse,0,0". The extra
-        /// data will be filled in automatically.
-        /// </summary>
-        /// <param name="baseName">Key basename</param>
-        /// <returns>The material property, if it exists</returns>
-        public MaterialProperty GetNonTextureProperty(String baseName)
+    /// <summary>
+    /// Gets the material property by its fully qualified name. The format is: {baseName},{texType},{texIndex}. E.g.
+    /// "$clr.diffuse,0,0" or "$tex.file,1,0".
+    /// </summary>
+    /// <param name="fullyQualifiedName">Fully qualified name of the property</param>
+    /// <returns>The material property, if it exists</returns>
+    public MaterialProperty GetProperty(string fullyQualifiedName)
+    {
+        if(string.IsNullOrEmpty(fullyQualifiedName))
         {
-            if(String.IsNullOrEmpty(baseName))
-            {
-                return null;
-            }
-            String fullyQualifiedName = CreateFullyQualifiedName(baseName, TextureType.None, 0);
-            return GetProperty(fullyQualifiedName);
+            return null;
         }
 
-        /// <summary>
-        /// Gets the material property. All the input parameters are combined into the fully qualified name: {baseName},{texType},{texIndex}. E.g.
-        /// "$clr.diffuse,0,0" or "$tex.file,1,0".
-        /// </summary>
-        /// <param name="baseName">Key basename</param>
-        /// <param name="texType">Texture type; non-texture properties should leave this <see cref="TextureType.None"/></param>
-        /// <param name="texIndex">Texture index; non-texture properties should leave this zero.</param>
-        /// <returns>The material property, if it exists</returns>
-        public MaterialProperty GetProperty(String baseName, TextureType texType, int texIndex)
+        if(!m_properties.TryGetValue(fullyQualifiedName, out var prop))
         {
-            if(String.IsNullOrEmpty(baseName))
-            {
-                return null;
-            }
-            String fullyQualifiedName = CreateFullyQualifiedName(baseName, texType, texIndex);
-            return GetProperty(fullyQualifiedName);
+            return null;
         }
+        return prop;
+    }
 
-        /// <summary>
-        /// Gets the material property by its fully qualified name. The format is: {baseName},{texType},{texIndex}. E.g.
-        /// "$clr.diffuse,0,0" or "$tex.file,1,0".
-        /// </summary>
-        /// <param name="fullyQualifiedName">Fully qualified name of the property</param>
-        /// <returns>The material property, if it exists</returns>
-        public MaterialProperty GetProperty(String fullyQualifiedName)
+    /// <summary>
+    /// Checks if the material has the specified non-texture property. The name should be
+    /// the "base name", as in it should not contain texture type/texture index information. E.g. "$clr.diffuse" rather than "$clr.diffuse,0,0". The extra
+    /// data will be filled in automatically.
+    /// </summary>
+    /// <param name="baseName">Key basename</param>
+    /// <returns>True if the property exists, false otherwise.</returns>
+    public bool HasNonTextureProperty(string baseName)
+    {
+        if(string.IsNullOrEmpty(baseName))
         {
-            if(String.IsNullOrEmpty(fullyQualifiedName))
-            {
-                return null;
-            }
-            MaterialProperty prop;
-            if(!m_properties.TryGetValue(fullyQualifiedName, out prop))
-            {
-                return null;
-            }
-            return prop;
+            return false;
         }
+        var fullyQualifiedName = CreateFullyQualifiedName(baseName, TextureType.None, 0);
+        return HasProperty(fullyQualifiedName);
+    }
 
-        /// <summary>
-        /// Checks if the material has the specified non-texture property. The name should be
-        /// the "base name", as in it should not contain texture type/texture index information. E.g. "$clr.diffuse" rather than "$clr.diffuse,0,0". The extra
-        /// data will be filled in automatically.
-        /// </summary>
-        /// <param name="baseName">Key basename</param>
-        /// <returns>True if the property exists, false otherwise.</returns>
-        public bool HasNonTextureProperty(String baseName)
+    /// <summary>
+    /// Checks if the material has the specified property. All the input parameters are combined into the fully qualified name: {baseName},{texType},{texIndex}. E.g.
+    /// "$clr.diffuse,0,0" or "$tex.file,1,0".
+    /// </summary>
+    /// <param name="baseName">Key basename</param>
+    /// <param name="texType">Texture type; non-texture properties should leave this <see cref="TextureType.None"/></param>
+    /// <param name="texIndex">Texture index; non-texture properties should leave this zero.</param>
+    /// <returns>True if the property exists, false otherwise.</returns>
+    public bool HasProperty(string baseName, TextureType texType, int texIndex)
+    {
+        if(string.IsNullOrEmpty(baseName))
         {
-            if(String.IsNullOrEmpty(baseName))
-            {
-                return false;
-            }
-            String fullyQualifiedName = CreateFullyQualifiedName(baseName, TextureType.None, 0);
-            return HasProperty(fullyQualifiedName);
+            return false;
         }
 
-        /// <summary>
-        /// Checks if the material has the specified property. All the input parameters are combined into the fully qualified name: {baseName},{texType},{texIndex}. E.g.
-        /// "$clr.diffuse,0,0" or "$tex.file,1,0".
-        /// </summary>
-        /// <param name="baseName">Key basename</param>
-        /// <param name="texType">Texture type; non-texture properties should leave this <see cref="TextureType.None"/></param>
-        /// <param name="texIndex">Texture index; non-texture properties should leave this zero.</param>
-        /// <returns>True if the property exists, false otherwise.</returns>
-        public bool HasProperty(String baseName, TextureType texType, int texIndex)
-        {
-            if(String.IsNullOrEmpty(baseName))
-            {
-                return false;
-            }
+        var fullyQualifiedName = CreateFullyQualifiedName(baseName, texType, texIndex);
+        return HasProperty(fullyQualifiedName);
+    }
 
-            String fullyQualifiedName = CreateFullyQualifiedName(baseName, texType, texIndex);
-            return HasProperty(fullyQualifiedName);
+    /// <summary>
+    /// Checks if the material has the specified property by looking up its fully qualified name. The format is: {baseName},{texType},{texIndex}. E.g.
+    /// "$clr.diffuse,0,0" or "$tex.file,1,0".
+    /// </summary>
+    /// <param name="fullyQualifiedName">Fully qualified name of the property</param>
+    /// <returns>True if the property exists, false otherwise.</returns>
+    public bool HasProperty(string fullyQualifiedName)
+    {
+        if(string.IsNullOrEmpty(fullyQualifiedName))
+        {
+            return false;
         }
+        return m_properties.ContainsKey(fullyQualifiedName);
+    }
+
+    /// <summary>
+    /// Adds a property to this material.
+    /// </summary>
+    /// <param name="matProp">Material property</param>
+    /// <returns>True if the property was successfully added, false otherwise (e.g. null or key already present).</returns>
+    public bool AddProperty(MaterialProperty matProp)
+    {
+        if(matProp == null || string.IsNullOrEmpty(matProp.FullyQualifiedName))
+            return false;
 
-        /// <summary>
-        /// Checks if the material has the specified property by looking up its fully qualified name. The format is: {baseName},{texType},{texIndex}. E.g.
-        /// "$clr.diffuse,0,0" or "$tex.file,1,0".
-        /// </summary>
-        /// <param name="fullyQualifiedName">Fully qualified name of the property</param>
-        /// <returns>True if the property exists, false otherwise.</returns>
-        public bool HasProperty(String fullyQualifiedName)
+        if(m_properties.ContainsKey(matProp.FullyQualifiedName))
+            return false;
+
+        m_properties.Add(matProp.FullyQualifiedName, matProp);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Removes a non-texture property from the material.
+    /// </summary>
+    /// <param name="baseName">Property name</param>
+    /// <returns>True if the property was removed, false otherwise</returns>
+    public bool RemoveNonTextureProperty(string baseName)
+    {
+        if(string.IsNullOrEmpty(baseName))
+            return false;
+
+        return RemoveProperty(CreateFullyQualifiedName(baseName, TextureType.None, 0));
+    }
+
+    /// <summary>
+    /// Removes a property from the material.
+    /// </summary>
+    /// <param name="baseName">Name of the property</param>
+    /// <param name="texType">Property texture type</param>
+    /// <param name="texIndex">Property texture index</param>
+    /// <returns>True if the property was removed, false otherwise</returns>
+    public bool RemoveProperty(string baseName, TextureType texType, int texIndex)
+    {
+        if(string.IsNullOrEmpty(baseName))
+            return false;
+
+        return RemoveProperty(CreateFullyQualifiedName(baseName, texType, texIndex));
+    }
+
+    /// <summary>
+    /// Removes a property from the material.
+    /// </summary>
+    /// <param name="fullyQualifiedName">Fully qualified name of the property ({basename},{texType},{texIndex})</param>
+    /// <returns>True if the property was removed, false otherwise</returns>
+    public bool RemoveProperty(string fullyQualifiedName)
+    {
+        if(string.IsNullOrEmpty(fullyQualifiedName))
+            return false;
+
+        return m_properties.Remove(fullyQualifiedName);
+    }
+
+    /// <summary>
+    /// Removes all properties from the material;
+    /// </summary>
+    public void Clear()
+    {
+        m_properties.Clear();
+    }
+
+    /// <summary>
+    /// Gets -all- properties contained in the Material.
+    /// </summary>
+    /// <returns>All properties in the material property map.</returns>
+    public MaterialProperty[] GetAllProperties()
+    {
+        var matProps = new MaterialProperty[m_properties.Values.Count];
+        m_properties.Values.CopyTo(matProps, 0);
+
+        return matProps;
+    }
+
+    /// <summary>
+    /// Gets all the number of textures that are of the specified texture type.
+    /// </summary>
+    /// <param name="texType">Texture type</param>
+    /// <returns>Texture count</returns>
+    public int GetMaterialTextureCount(TextureType texType)
+    {
+        var count = 0;
+        foreach(var kv in m_properties)
         {
-            if(String.IsNullOrEmpty(fullyQualifiedName))
+            var matProp = kv.Value;
+
+            if(matProp.Name.StartsWith(AiMatKeys.TEXTURE_BASE) && matProp.TextureType == texType)
             {
-                return false;
+                count++;
             }
-            return m_properties.ContainsKey(fullyQualifiedName);
         }
 
-        /// <summary>
-        /// Adds a property to this material.
-        /// </summary>
-        /// <param name="matProp">Material property</param>
-        /// <returns>True if the property was successfully added, false otherwise (e.g. null or key already present).</returns>
-        public bool AddProperty(MaterialProperty matProp)
-        {
-            if(matProp == null || String.IsNullOrEmpty(matProp.FullyQualifiedName))
-                return false;
+        return count;
+    }
+
+    /// <summary>
+    /// Adds a texture to the material - this bulk creates a property for each field. This will
+    /// either create properties or overwrite existing properties. If the texture has no
+    /// file path, nothing is added.
+    /// </summary>
+    /// <param name="texture">Texture to add</param>
+    /// <returns>True if the texture properties were added or modified</returns>
+    public bool AddMaterialTexture(in TextureSlot texture)
+    {
+        return AddMaterialTexture(in texture, false);
+    }
+
+    /// <summary>
+    /// Adds a texture to the material - this bulk creates a property for each field. This will
+    /// either create properties or overwrite existing properties. If the texture has no
+    /// file path, nothing is added.
+    /// </summary>
+    /// <param name="texture">Texture to add</param>
+    /// <param name="onlySetFilePath">True to only set the texture's file path, false otherwise</param>
+    /// <returns>True if the texture properties were added or modified</returns>
+    public bool AddMaterialTexture(in TextureSlot texture, bool onlySetFilePath)
+    {
+        if(string.IsNullOrEmpty(texture.FilePath))
+            return false;
+
+        var texType = texture.TextureType;
+        var texIndex = texture.TextureIndex;
+
+        var texName = CreateFullyQualifiedName(AiMatKeys.TEXTURE_BASE, texType, texIndex);
 
-            if(m_properties.ContainsKey(matProp.FullyQualifiedName))
-                return false;
+        var texNameProp = GetProperty(texName);
 
-            m_properties.Add(matProp.FullyQualifiedName, matProp);
+        if(texNameProp == null)
+            AddProperty(new(AiMatKeys.TEXTURE_BASE, texture.FilePath, texType, texIndex));
+        else
+            texNameProp.SetStringValue(texture.FilePath);
 
+        if(onlySetFilePath)
             return true;
+
+        var mappingName = CreateFullyQualifiedName(AiMatKeys.MAPPING_BASE, texType, texIndex);
+        var uvIndexName = CreateFullyQualifiedName(AiMatKeys.UVWSRC_BASE, texType, texIndex);
+        var blendFactorName = CreateFullyQualifiedName(AiMatKeys.TEXBLEND_BASE, texType, texIndex);
+        var texOpName = CreateFullyQualifiedName(AiMatKeys.TEXOP_BASE, texType, texIndex);
+        var uMapModeName = CreateFullyQualifiedName(AiMatKeys.MAPPINGMODE_U_BASE, texType, texIndex);
+        var vMapModeName = CreateFullyQualifiedName(AiMatKeys.MAPPINGMODE_V_BASE, texType, texIndex);
+        var texFlagsName = CreateFullyQualifiedName(AiMatKeys.TEXFLAGS_BASE, texType, texIndex);
+
+        var mappingNameProp = GetProperty(mappingName);
+        var uvIndexNameProp = GetProperty(uvIndexName);
+        var blendFactorNameProp = GetProperty(blendFactorName);
+        var texOpNameProp = GetProperty(texOpName);
+        var uMapModeNameProp = GetProperty(uMapModeName);
+        var vMapModeNameProp = GetProperty(vMapModeName);
+        var texFlagsNameProp = GetProperty(texFlagsName);
+
+        if(mappingNameProp == null)
+            AddProperty(new(AiMatKeys.MAPPING_BASE, (int) texture.Mapping));
+        else
+            mappingNameProp.SetIntegerValue((int) texture.Mapping);
+
+        if(uvIndexNameProp == null)
+            AddProperty(new(AiMatKeys.MAPPING_BASE, (int) texture.Mapping));
+        else
+            uvIndexNameProp.SetIntegerValue(texture.UVIndex);
+
+        if(blendFactorNameProp == null)
+            AddProperty(new(AiMatKeys.TEXBLEND_BASE, texture.BlendFactor));
+        else
+            blendFactorNameProp.SetFloatValue(texture.BlendFactor);
+
+        if(texOpNameProp == null)
+            AddProperty(new(AiMatKeys.TEXOP_BASE, (int) texture.Operation));
+        else
+            texOpNameProp.SetIntegerValue((int) texture.Operation);
+
+        if(uMapModeNameProp == null)
+            AddProperty(new(AiMatKeys.MAPPINGMODE_U_BASE, (int) texture.WrapModeU));
+        else
+            uMapModeNameProp.SetIntegerValue((int) texture.WrapModeU);
+
+        if(vMapModeNameProp == null)
+            AddProperty(new(AiMatKeys.MAPPINGMODE_V_BASE, (int) texture.WrapModeV));
+        else
+            vMapModeNameProp.SetIntegerValue((int) texture.WrapModeV);
+
+        if(texFlagsNameProp == null)
+            AddProperty(new(AiMatKeys.TEXFLAGS_BASE, texture.Flags));
+        else
+            texFlagsNameProp.SetIntegerValue(texture.Flags);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Removes a texture from the material - this bulk removes a property for each field.
+    /// If the texture has no file path, nothing is removed
+    /// </summary>
+    /// <param name="texture">Texture to remove</param>
+    /// <returns>True if the texture was removed, false otherwise.</returns>
+    public bool RemoveMaterialTexture(in TextureSlot texture)
+    {
+        if(string.IsNullOrEmpty(texture.FilePath))
+            return false;
+
+        var texType = texture.TextureType;
+        var texIndex = texture.TextureIndex;
+
+        var texName = CreateFullyQualifiedName(AiMatKeys.TEXTURE_BASE, texType, texIndex);
+        var mappingName = CreateFullyQualifiedName(AiMatKeys.MAPPING_BASE, texType, texIndex);
+        var uvIndexName = CreateFullyQualifiedName(AiMatKeys.UVWSRC_BASE, texType, texIndex);
+        var blendFactorName = CreateFullyQualifiedName(AiMatKeys.TEXBLEND_BASE, texType, texIndex);
+        var texOpName = CreateFullyQualifiedName(AiMatKeys.TEXOP_BASE, texType, texIndex);
+        var uMapModeName = CreateFullyQualifiedName(AiMatKeys.MAPPINGMODE_U_BASE, texType, texIndex);
+        var vMapModeName = CreateFullyQualifiedName(AiMatKeys.MAPPINGMODE_V_BASE, texType, texIndex);
+        var texFlagsName = CreateFullyQualifiedName(AiMatKeys.TEXFLAGS_BASE, texType, texIndex);
+
+        RemoveProperty(texName);
+        RemoveProperty(mappingName);
+        RemoveProperty(uvIndexName);
+        RemoveProperty(blendFactorName);
+        RemoveProperty(texOpName);
+        RemoveProperty(uMapModeName);
+        RemoveProperty(vMapModeName);
+        RemoveProperty(texFlagsName);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Gets a texture that corresponds to the type/index.
+    /// </summary>
+    /// <param name="texType">Texture type</param>
+    /// <param name="texIndex">Texture index</param>
+    /// <param name="texture">Texture description</param>
+    /// <returns>True if the texture was found in the material</returns>
+    public bool GetMaterialTexture(TextureType texType, int texIndex, out TextureSlot texture)
+    {
+        texture = new();
+
+        var texName = CreateFullyQualifiedName(AiMatKeys.TEXTURE_BASE, texType, texIndex);
+
+        var texNameProp = GetProperty(texName);
+
+        //This one is necessary, the rest are optional
+        if(texNameProp == null)
+            return false;
+
+        var mappingName = CreateFullyQualifiedName(AiMatKeys.MAPPING_BASE, texType, texIndex);
+        var uvIndexName = CreateFullyQualifiedName(AiMatKeys.UVWSRC_BASE, texType, texIndex);
+        var blendFactorName = CreateFullyQualifiedName(AiMatKeys.TEXBLEND_BASE, texType, texIndex);
+        var texOpName = CreateFullyQualifiedName(AiMatKeys.TEXOP_BASE, texType, texIndex);
+        var uMapModeName = CreateFullyQualifiedName(AiMatKeys.MAPPINGMODE_U_BASE, texType, texIndex);
+        var vMapModeName = CreateFullyQualifiedName(AiMatKeys.MAPPINGMODE_V_BASE, texType, texIndex);
+        var texFlagsName = CreateFullyQualifiedName(AiMatKeys.TEXFLAGS_BASE, texType, texIndex);
+
+        var mappingNameProp = GetProperty(mappingName);
+        var uvIndexNameProp = GetProperty(uvIndexName);
+        var blendFactorNameProp = GetProperty(blendFactorName);
+        var texOpNameProp = GetProperty(texOpName);
+        var uMapModeNameProp = GetProperty(uMapModeName);
+        var vMapModeNameProp = GetProperty(vMapModeName);
+        var texFlagsNameProp = GetProperty(texFlagsName);
+
+        texture.FilePath = texNameProp.GetStringValue();
+        texture.TextureType = texType;
+        texture.TextureIndex = texIndex;
+        texture.Mapping = mappingNameProp != null ? (TextureMapping) mappingNameProp.GetIntegerValue() : TextureMapping.FromUV;
+        texture.UVIndex = uvIndexNameProp?.GetIntegerValue() ?? 0;
+        texture.BlendFactor = blendFactorNameProp?.GetFloatValue() ?? 0.0f;
+        texture.Operation = texOpNameProp != null ? (TextureOperation) texOpNameProp.GetIntegerValue() : 0;
+        texture.WrapModeU = uMapModeNameProp != null ? (TextureWrapMode) uMapModeNameProp.GetIntegerValue() : TextureWrapMode.Wrap;
+        texture.WrapModeV = vMapModeNameProp != null ? (TextureWrapMode) vMapModeNameProp.GetIntegerValue() : TextureWrapMode.Wrap;
+        texture.Flags = texFlagsNameProp?.GetIntegerValue() ?? 0;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Gets all textures that correspond to the type.
+    /// </summary>
+    /// <param name="type">Texture type</param>
+    /// <returns>The array of textures</returns>
+    public TextureSlot[] GetMaterialTextures(TextureType type)
+    {
+        var count = GetMaterialTextureCount(type);
+
+        if(count == 0)
+            return Array.Empty<TextureSlot>();
+
+        var textures = new TextureSlot[count];
+
+        for(var i = 0; i < count; i++)
+        {
+            GetMaterialTexture(type, i, out var tex);
+            textures[i] = tex;
         }
 
-        /// <summary>
-        /// Removes a non-texture property from the material.
-        /// </summary>
-        /// <param name="baseName">Property name</param>
-        /// <returns>True if the property was removed, false otherwise</returns>
-        public bool RemoveNonTextureProperty(String baseName)
-        {
-            if(String.IsNullOrEmpty(baseName))
-                return false;
+        return textures;
+    }
 
-            return RemoveProperty(CreateFullyQualifiedName(baseName, TextureType.None, 0));
+    /// <summary>
+    /// Gets all textures in the material.
+    /// </summary>
+    /// <returns>The array of textures</returns>
+    public TextureSlot[] GetAllMaterialTextures()
+    {
+        var textures = new List<TextureSlot>();
+        var types = Enum.GetValues(typeof(TextureType)) as TextureType[];
+
+        foreach(var texType in types)
+        {
+            textures.AddRange(GetMaterialTextures(texType));
         }
 
-        /// <summary>
-        /// Removes a property from the material.
-        /// </summary>
-        /// <param name="baseName">Name of the property</param>
-        /// <param name="texType">Property texture type</param>
-        /// <param name="texIndex">Property texture index</param>
-        /// <returns>True if the property was removed, false otherwise</returns>
-        public bool RemoveProperty(String baseName, TextureType texType, int texIndex)
+        return textures.ToArray();
+    }
+
+    #region IMarshalable Implementation
+
+    /// <summary>
+    /// Gets if the native value type is blittable (that is, does not require marshaling by the runtime, e.g. has MarshalAs attributes).
+    /// </summary>
+    bool IMarshalable<Material, AiMaterial>.IsNativeBlittable => true;
+
+    /// <summary>
+    /// Writes the managed data to the native value.
+    /// </summary>
+    /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
+    /// <param name="nativeValue">Output native value</param>
+    void IMarshalable<Material, AiMaterial>.ToNative(nint thisPtr, out AiMaterial nativeValue)
+    {
+        nativeValue.NumAllocated = nativeValue.NumProperties = (uint) m_properties.Count;
+        nativeValue.Properties = nint.Zero;
+
+        if(m_properties.Count > 0)
         {
-            if(String.IsNullOrEmpty(baseName))
-                return false;
-
-            return RemoveProperty(CreateFullyQualifiedName(baseName, texType, texIndex));
-        }
-
-        /// <summary>
-        /// Removes a property from the material.
-        /// </summary>
-        /// <param name="fullyQualifiedName">Fully qualified name of the property ({basename},{texType},{texIndex})</param>
-        /// <returns>True if the property was removed, false otherwise</returns>
-        public bool RemoveProperty(String fullyQualifiedName)
-        {
-            if(String.IsNullOrEmpty(fullyQualifiedName))
-                return false;
-
-            return m_properties.Remove(fullyQualifiedName);
-        }
-
-        /// <summary>
-        /// Removes all properties from the material;
-        /// </summary>
-        public void Clear()
-        {
-            m_properties.Clear();
-        }
-
-        /// <summary>
-        /// Gets -all- properties contained in the Material.
-        /// </summary>
-        /// <returns>All properties in the material property map.</returns>
-        public MaterialProperty[] GetAllProperties()
-        {
-            MaterialProperty[] matProps = new MaterialProperty[m_properties.Values.Count];
+            var matProps = new MaterialProperty[m_properties.Values.Count];
             m_properties.Values.CopyTo(matProps, 0);
 
-            return matProps;
+            nativeValue.Properties = MemoryHelper.ToNativeArray<MaterialProperty, AiMaterialProperty>(matProps, true);
         }
-
-        /// <summary>
-        /// Gets all the number of textures that are of the specified texture type.
-        /// </summary>
-        /// <param name="texType">Texture type</param>
-        /// <returns>Texture count</returns>
-        public int GetMaterialTextureCount(TextureType texType)
-        {
-            int count = 0;
-            foreach(KeyValuePair<String, MaterialProperty> kv in m_properties)
-            {
-                MaterialProperty matProp = kv.Value;
-
-                if(matProp.Name.StartsWith(AiMatKeys.TEXTURE_BASE) && matProp.TextureType == texType)
-                {
-                    count++;
-                }
-            }
-
-            return count;
-        }
-
-        /// <summary>
-        /// Adds a texture to the material - this bulk creates a property for each field. This will
-        /// either create properties or overwrite existing properties. If the texture has no
-        /// file path, nothing is added.
-        /// </summary>
-        /// <param name="texture">Texture to add</param>
-        /// <returns>True if the texture properties were added or modified</returns>
-        public bool AddMaterialTexture(in TextureSlot texture)
-        {
-            return AddMaterialTexture(in texture, false);
-        }
-
-        /// <summary>
-        /// Adds a texture to the material - this bulk creates a property for each field. This will
-        /// either create properties or overwrite existing properties. If the texture has no
-        /// file path, nothing is added.
-        /// </summary>
-        /// <param name="texture">Texture to add</param>
-        /// <param name="onlySetFilePath">True to only set the texture's file path, false otherwise</param>
-        /// <returns>True if the texture properties were added or modified</returns>
-        public bool AddMaterialTexture(in TextureSlot texture, bool onlySetFilePath)
-        {
-            if(String.IsNullOrEmpty(texture.FilePath))
-                return false;
-
-            TextureType texType = texture.TextureType;
-            int texIndex = texture.TextureIndex;
-
-            String texName = CreateFullyQualifiedName(AiMatKeys.TEXTURE_BASE, texType, texIndex);
-
-            MaterialProperty texNameProp = GetProperty(texName);
-
-            if(texNameProp == null)
-                AddProperty(new MaterialProperty(AiMatKeys.TEXTURE_BASE, texture.FilePath, texType, texIndex));
-            else
-                texNameProp.SetStringValue(texture.FilePath);
-
-            if(onlySetFilePath)
-                return true;
-
-            String mappingName = CreateFullyQualifiedName(AiMatKeys.MAPPING_BASE, texType, texIndex);
-            String uvIndexName = CreateFullyQualifiedName(AiMatKeys.UVWSRC_BASE, texType, texIndex);
-            String blendFactorName = CreateFullyQualifiedName(AiMatKeys.TEXBLEND_BASE, texType, texIndex);
-            String texOpName = CreateFullyQualifiedName(AiMatKeys.TEXOP_BASE, texType, texIndex);
-            String uMapModeName = CreateFullyQualifiedName(AiMatKeys.MAPPINGMODE_U_BASE, texType, texIndex);
-            String vMapModeName = CreateFullyQualifiedName(AiMatKeys.MAPPINGMODE_V_BASE, texType, texIndex);
-            String texFlagsName = CreateFullyQualifiedName(AiMatKeys.TEXFLAGS_BASE, texType, texIndex);
-
-            MaterialProperty mappingNameProp = GetProperty(mappingName);
-            MaterialProperty uvIndexNameProp = GetProperty(uvIndexName);
-            MaterialProperty blendFactorNameProp = GetProperty(blendFactorName);
-            MaterialProperty texOpNameProp = GetProperty(texOpName);
-            MaterialProperty uMapModeNameProp = GetProperty(uMapModeName);
-            MaterialProperty vMapModeNameProp = GetProperty(vMapModeName);
-            MaterialProperty texFlagsNameProp = GetProperty(texFlagsName);
-
-            if(mappingNameProp == null)
-                AddProperty(new MaterialProperty(AiMatKeys.MAPPING_BASE, (int) texture.Mapping));
-            else
-                mappingNameProp.SetIntegerValue((int) texture.Mapping);
-
-            if(uvIndexNameProp == null)
-                AddProperty(new MaterialProperty(AiMatKeys.MAPPING_BASE, (int) texture.Mapping));
-            else
-                uvIndexNameProp.SetIntegerValue(texture.UVIndex);
-
-            if(blendFactorNameProp == null)
-                AddProperty(new MaterialProperty(AiMatKeys.TEXBLEND_BASE, texture.BlendFactor));
-            else
-                blendFactorNameProp.SetFloatValue(texture.BlendFactor);
-
-            if(texOpNameProp == null)
-                AddProperty(new MaterialProperty(AiMatKeys.TEXOP_BASE, (int) texture.Operation));
-            else
-                texOpNameProp.SetIntegerValue((int) texture.Operation);
-
-            if(uMapModeNameProp == null)
-                AddProperty(new MaterialProperty(AiMatKeys.MAPPINGMODE_U_BASE, (int) texture.WrapModeU));
-            else
-                uMapModeNameProp.SetIntegerValue((int) texture.WrapModeU);
-
-            if(vMapModeNameProp == null)
-                AddProperty(new MaterialProperty(AiMatKeys.MAPPINGMODE_V_BASE, (int) texture.WrapModeV));
-            else
-                vMapModeNameProp.SetIntegerValue((int) texture.WrapModeV);
-
-            if(texFlagsNameProp == null)
-                AddProperty(new MaterialProperty(AiMatKeys.TEXFLAGS_BASE, texture.Flags));
-            else
-                texFlagsNameProp.SetIntegerValue(texture.Flags);
-
-            return true;
-        }
-
-        /// <summary>
-        /// Removes a texture from the material - this bulk removes a property for each field.
-        /// If the texture has no file path, nothing is removed
-        /// </summary>
-        /// <param name="texture">Texture to remove</param>
-        /// <returns>True if the texture was removed, false otherwise.</returns>
-        public bool RemoveMaterialTexture(in TextureSlot texture)
-        {
-            if(String.IsNullOrEmpty(texture.FilePath))
-                return false;
-
-            TextureType texType = texture.TextureType;
-            int texIndex = texture.TextureIndex;
-
-            String texName = CreateFullyQualifiedName(AiMatKeys.TEXTURE_BASE, texType, texIndex);
-            String mappingName = CreateFullyQualifiedName(AiMatKeys.MAPPING_BASE, texType, texIndex);
-            String uvIndexName = CreateFullyQualifiedName(AiMatKeys.UVWSRC_BASE, texType, texIndex);
-            String blendFactorName = CreateFullyQualifiedName(AiMatKeys.TEXBLEND_BASE, texType, texIndex);
-            String texOpName = CreateFullyQualifiedName(AiMatKeys.TEXOP_BASE, texType, texIndex);
-            String uMapModeName = CreateFullyQualifiedName(AiMatKeys.MAPPINGMODE_U_BASE, texType, texIndex);
-            String vMapModeName = CreateFullyQualifiedName(AiMatKeys.MAPPINGMODE_V_BASE, texType, texIndex);
-            String texFlagsName = CreateFullyQualifiedName(AiMatKeys.TEXFLAGS_BASE, texType, texIndex);
-
-            RemoveProperty(texName);
-            RemoveProperty(mappingName);
-            RemoveProperty(uvIndexName);
-            RemoveProperty(blendFactorName);
-            RemoveProperty(texOpName);
-            RemoveProperty(uMapModeName);
-            RemoveProperty(vMapModeName);
-            RemoveProperty(texFlagsName);
-
-            return true;
-        }
-
-        /// <summary>
-        /// Gets a texture that corresponds to the type/index.
-        /// </summary>
-        /// <param name="texType">Texture type</param>
-        /// <param name="texIndex">Texture index</param>
-        /// <param name="texture">Texture description</param>
-        /// <returns>True if the texture was found in the material</returns>
-        public bool GetMaterialTexture(TextureType texType, int texIndex, out TextureSlot texture)
-        {
-            texture = new TextureSlot();
-
-            String texName = CreateFullyQualifiedName(AiMatKeys.TEXTURE_BASE, texType, texIndex);
-
-            MaterialProperty texNameProp = GetProperty(texName);
-
-            //This one is necessary, the rest are optional
-            if(texNameProp == null)
-                return false;
-
-            String mappingName = CreateFullyQualifiedName(AiMatKeys.MAPPING_BASE, texType, texIndex);
-            String uvIndexName = CreateFullyQualifiedName(AiMatKeys.UVWSRC_BASE, texType, texIndex);
-            String blendFactorName = CreateFullyQualifiedName(AiMatKeys.TEXBLEND_BASE, texType, texIndex);
-            String texOpName = CreateFullyQualifiedName(AiMatKeys.TEXOP_BASE, texType, texIndex);
-            String uMapModeName = CreateFullyQualifiedName(AiMatKeys.MAPPINGMODE_U_BASE, texType, texIndex);
-            String vMapModeName = CreateFullyQualifiedName(AiMatKeys.MAPPINGMODE_V_BASE, texType, texIndex);
-            String texFlagsName = CreateFullyQualifiedName(AiMatKeys.TEXFLAGS_BASE, texType, texIndex);
-
-            MaterialProperty mappingNameProp = GetProperty(mappingName);
-            MaterialProperty uvIndexNameProp = GetProperty(uvIndexName);
-            MaterialProperty blendFactorNameProp = GetProperty(blendFactorName);
-            MaterialProperty texOpNameProp = GetProperty(texOpName);
-            MaterialProperty uMapModeNameProp = GetProperty(uMapModeName);
-            MaterialProperty vMapModeNameProp = GetProperty(vMapModeName);
-            MaterialProperty texFlagsNameProp = GetProperty(texFlagsName);
-
-            texture.FilePath = texNameProp.GetStringValue();
-            texture.TextureType = texType;
-            texture.TextureIndex = texIndex;
-            texture.Mapping = (mappingNameProp != null) ? (TextureMapping) mappingNameProp.GetIntegerValue() : TextureMapping.FromUV;
-            texture.UVIndex = (uvIndexNameProp != null) ? uvIndexNameProp.GetIntegerValue() : 0;
-            texture.BlendFactor = (blendFactorNameProp != null) ? blendFactorNameProp.GetFloatValue() : 0.0f;
-            texture.Operation = (texOpNameProp != null) ? (TextureOperation) texOpNameProp.GetIntegerValue() : 0;
-            texture.WrapModeU = (uMapModeNameProp != null) ? (TextureWrapMode) uMapModeNameProp.GetIntegerValue() : TextureWrapMode.Wrap;
-            texture.WrapModeV = (vMapModeNameProp != null) ? (TextureWrapMode) vMapModeNameProp.GetIntegerValue() : TextureWrapMode.Wrap;
-            texture.Flags = (texFlagsNameProp != null) ? texFlagsNameProp.GetIntegerValue() : 0;
-
-            return true;
-        }
-
-        /// <summary>
-        /// Gets all textures that correspond to the type.
-        /// </summary>
-        /// <param name="type">Texture type</param>
-        /// <returns>The array of textures</returns>
-        public TextureSlot[] GetMaterialTextures(TextureType type)
-        {
-            int count = GetMaterialTextureCount(type);
-
-            if(count == 0)
-                return new TextureSlot[0];
-
-            TextureSlot[] textures = new TextureSlot[count];
-
-            for(int i = 0; i < count; i++)
-            {
-                TextureSlot tex;
-                GetMaterialTexture(type, i, out tex);
-                textures[i] = tex;
-            }
-
-            return textures;
-        }
-
-        /// <summary>
-        /// Gets all textures in the material.
-        /// </summary>
-        /// <returns>The array of textures</returns>
-        public TextureSlot[] GetAllMaterialTextures()
-        {
-            List<TextureSlot> textures = new List<TextureSlot>();
-            TextureType[] types = Enum.GetValues(typeof(TextureType)) as TextureType[];
-
-            foreach(TextureType texType in types)
-            {
-                textures.AddRange(GetMaterialTextures(texType));
-            }
-
-            return textures.ToArray();
-        }
-
-        #region IMarshalable Implementation
-
-        /// <summary>
-        /// Gets if the native value type is blittable (that is, does not require marshaling by the runtime, e.g. has MarshalAs attributes).
-        /// </summary>
-        bool IMarshalable<Material, AiMaterial>.IsNativeBlittable { get { return true; } }
-
-        /// <summary>
-        /// Writes the managed data to the native value.
-        /// </summary>
-        /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
-        /// <param name="nativeValue">Output native value</param>
-        void IMarshalable<Material, AiMaterial>.ToNative(IntPtr thisPtr, out AiMaterial nativeValue)
-        {
-            nativeValue.NumAllocated = nativeValue.NumProperties = (uint) m_properties.Count;
-            nativeValue.Properties = IntPtr.Zero;
-
-            if(m_properties.Count > 0)
-            {
-                MaterialProperty[] matProps = new MaterialProperty[m_properties.Values.Count];
-                m_properties.Values.CopyTo(matProps, 0);
-
-                nativeValue.Properties = MemoryHelper.ToNativeArray<MaterialProperty, AiMaterialProperty>(matProps, true);
-            }
-        }
-
-        /// <summary>
-        /// Reads the unmanaged data from the native value.
-        /// </summary>
-        /// <param name="nativeValue">Input native value</param>
-        void IMarshalable<Material, AiMaterial>.FromNative(in AiMaterial nativeValue)
-        {
-            Clear();
-
-            if(nativeValue.NumProperties > 0 && nativeValue.Properties != IntPtr.Zero)
-            {
-                MaterialProperty[] matProps = MemoryHelper.FromNativeArray<MaterialProperty, AiMaterialProperty>(nativeValue.Properties, (int) nativeValue.NumProperties, true);
-
-                foreach(MaterialProperty matProp in matProps)
-                {
-                    AddProperty(matProp);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Frees unmanaged memory created by <see cref="IMarshalable{Material, AiMaterial}.ToNative"/>.
-        /// </summary>
-        /// <param name="nativeValue">Native value to free</param>
-        /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-        public static void FreeNative(IntPtr nativeValue, bool freeNative)
-        {
-            if(nativeValue == IntPtr.Zero)
-                return;
-
-            AiMaterial aiMaterial = MemoryHelper.Read<AiMaterial>(nativeValue);
-
-            if(aiMaterial.NumAllocated > 0 && aiMaterial.Properties != IntPtr.Zero)
-                MemoryHelper.FreeNativeArray<AiMaterialProperty>(aiMaterial.Properties, (int) aiMaterial.NumProperties, MaterialProperty.FreeNative, true);
-
-            if(freeNative)
-                MemoryHelper.FreeMemory(nativeValue);
-        }
-
-        #endregion
-
-
-        #region Property Group Accessors
-
-        /// <summary>
-        /// Groups all PBR workflow properties into a single accessor.
-        /// </summary>
-        public sealed class PBRMaterialProperties
-        {
-            private Material m_parent;
-
-            /// <summary>
-            /// Gets if the material has a base color map (albedo/diffuse) texture in the first texture index.
-            /// </summary>
-            public bool HasTextureBaseColor
-            {
-                get
-                {
-                    return m_parent.HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.BaseColor, 0);
-                }
-            }
-
-            /// <summary>
-            /// Gets or sets the base color map (albedo/diffuse) texture properties in the first texture index.
-            /// </summary>
-            public TextureSlot TextureBaseColor
-            {
-                get
-                {
-                    TextureSlot tex;
-                    m_parent.GetMaterialTexture(TextureType.BaseColor, 0, out tex);
-
-                    return tex;
-                }
-                set
-                {
-                    if(value.TextureIndex == 0 && value.TextureType == TextureType.BaseColor)
-                        m_parent.AddMaterialTexture(value);
-                }
-            }
-
-            /// <summary>
-            /// Gets if the material has a normal map texture in the first texture index.
-            /// </summary>
-            public bool HasTextureNormalCamera
-            {
-                get
-                {
-                    return m_parent.HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.NormalCamera, 0);
-                }
-            }
-
-            /// <summary>
-            /// Gets or sets the normal map texture properties in the first texture index.
-            /// </summary>
-            public TextureSlot TextureNormalCamera
-            {
-                get
-                {
-                    TextureSlot tex;
-                    m_parent.GetMaterialTexture(TextureType.NormalCamera, 0, out tex);
-
-                    return tex;
-                }
-                set
-                {
-                    if(value.TextureIndex == 0 && value.TextureType == TextureType.NormalCamera)
-                        m_parent.AddMaterialTexture(value);
-                }
-            }
-
-            /// <summary>
-            /// Gets if the material has an emission color map texture in the first texture index.
-            /// </summary>
-            public bool HasTextureEmissionColor
-            {
-                get
-                {
-                    return m_parent.HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.EmissionColor, 0);
-                }
-            }
-
-            /// <summary>
-            /// Gets or sets the emission color map texture properties in the first texture index.
-            /// </summary>
-            public TextureSlot TextureEmissionColor
-            {
-                get
-                {
-                    TextureSlot tex;
-                    m_parent.GetMaterialTexture(TextureType.EmissionColor, 0, out tex);
-
-                    return tex;
-                }
-                set
-                {
-                    if(value.TextureIndex == 0 && value.TextureType == TextureType.EmissionColor)
-                        m_parent.AddMaterialTexture(value);
-                }
-            }
-
-            /// <summary>
-            /// Gets if the material has a metalness map texture in the first texture index.
-            /// </summary>
-            public bool HasTextureMetalness
-            {
-                get
-                {
-                    return m_parent.HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Metalness, 0);
-                }
-            }
-
-            /// <summary>
-            /// Gets or sets the metalness map texture properties in the first texture index.
-            /// </summary>
-            public TextureSlot TextureMetalness
-            {
-                get
-                {
-                    TextureSlot tex;
-                    m_parent.GetMaterialTexture(TextureType.Metalness, 0, out tex);
-
-                    return tex;
-                }
-                set
-                {
-                    if(value.TextureIndex == 0 && value.TextureType == TextureType.Metalness)
-                        m_parent.AddMaterialTexture(value);
-                }
-            }
-
-            /// <summary>
-            /// Gets if the material has a roughness map texture in the first texture index.
-            /// </summary>
-            public bool HasTextureRoughness
-            {
-                get
-                {
-                    return m_parent.HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Roughness, 0);
-                }
-            }
-
-            /// <summary>
-            /// Gets or sets the roughness map texture properties in the first texture index.
-            /// </summary>
-            public TextureSlot TextureRoughness
-            {
-                get
-                {
-                    TextureSlot tex;
-                    m_parent.GetMaterialTexture(TextureType.Roughness, 0, out tex);
-
-                    return tex;
-                }
-                set
-                {
-                    if(value.TextureIndex == 0 && value.TextureType == TextureType.Roughness)
-                        m_parent.AddMaterialTexture(value);
-                }
-            }
-
-            /// <summary>
-            /// Constructs new property group accessor.
-            /// </summary>
-            /// <param name="parent">Material</param>
-            internal PBRMaterialProperties(Material parent)
-            {
-                m_parent = parent;
-            }
-        }
-
-        /// <summary>
-        /// Groups all the properties for shader sources in a single accessor.
-        /// </summary>
-        public sealed class ShaderMaterialProperties
-        {
-            private Material m_parent;
-
-            /// <summary>
-            /// Gets if the material has a property for shader language type.
-            /// </summary>
-            public bool HasShaderLanguageType
-            {
-                get
-                {
-                    return m_parent.HasProperty(AiMatKeys.GLOBAL_SHADERLANG);
-                }
-            }
-
-            /// <summary>
-            /// Gets or sets what language (HLSL, GLSL, etc) any shader source code in this material is of.
-            /// </summary>
-            public String ShaderLanguageType
-            {
-                get
-                {
-                    return GetStringProperty(AiMatKeys.GLOBAL_SHADERLANG);
-                }
-                set
-                {
-                    SetStringProperty(AiMatKeys.GLOBAL_SHADERLANG, AiMatKeys.GLOBAL_SHADERLANG_BASE, value);
-                }
-            }
-
-            /// <summary>
-            /// Gets if the material has a property for vertex shader source code.
-            /// </summary>
-            public bool HasVertexShader
-            {
-                get
-                {
-                    return m_parent.HasProperty(AiMatKeys.SHADER_VERTEX);
-                }
-            }
-
-            /// <summary>
-            /// Gets or sets vertex shader source code.
-            /// </summary>
-            public String VertexShader
-            {
-                get
-                {
-                    return GetStringProperty(AiMatKeys.SHADER_VERTEX);
-                }
-                set
-                {
-                    SetStringProperty(AiMatKeys.SHADER_VERTEX, AiMatKeys.SHADER_VERTEX_BASE, value);
-                }
-            }
-
-            /// <summary>
-            /// Gets if the material has a property for fragment (pixel) shader source code.
-            /// </summary>
-            public bool HasFragmentShader
-            {
-                get
-                {
-                    return m_parent.HasProperty(AiMatKeys.SHADER_FRAGMENT);
-                }
-            }
-
-            /// <summary>
-            /// Gets or sets fragment (pixel) shader source code.
-            /// </summary>
-            public String FragmentShader
-            {
-                get
-                {
-                    return GetStringProperty(AiMatKeys.SHADER_FRAGMENT);
-                }
-                set
-                {
-                    SetStringProperty(AiMatKeys.SHADER_FRAGMENT, AiMatKeys.SHADER_FRAGMENT_BASE, value);
-                }
-            }
-
-            /// <summary>
-            /// Gets if the material has a property for geometry shader source code.
-            /// </summary>
-            public bool HasGeometryShader
-            {
-                get
-                {
-                    return m_parent.HasProperty(AiMatKeys.SHADER_GEO);
-                }
-            }
-
-            /// <summary>
-            /// Gets or sets geometry shader source code.
-            /// </summary>
-            public String GeometryShader
-            {
-                get
-                {
-                    return GetStringProperty(AiMatKeys.SHADER_GEO);
-                }
-                set
-                {
-                    SetStringProperty(AiMatKeys.SHADER_GEO, AiMatKeys.SHADER_GEO_BASE, value);
-                }
-            }
-
-            /// <summary>
-            /// Gets if the material has a property for tesselation shader source code.
-            /// </summary>
-            public bool HasTesselationShader
-            {
-                get
-                {
-                    return m_parent.HasProperty(AiMatKeys.SHADER_TESSELATION);
-                }
-            }
-
-            /// <summary>
-            /// Gets or sets tesselation shader source code.
-            /// </summary>
-            public String TesselationShader
-            {
-                get
-                {
-                    return GetStringProperty(AiMatKeys.SHADER_TESSELATION);
-                }
-                set
-                {
-                    SetStringProperty(AiMatKeys.SHADER_TESSELATION, AiMatKeys.SHADER_TESSELATION_BASE, value);
-                }
-            }
-
-            /// <summary>
-            /// Gets if the material has a property for primitive (domain) shader source code.
-            /// </summary>
-            public bool HasPrimitiveShader
-            {
-                get
-                {
-                    return m_parent.HasProperty(AiMatKeys.SHADER_PRIMITIVE);
-                }
-            }
-
-            /// <summary>
-            /// Gets or sets primitive (domain) shader source code.
-            /// </summary>
-            public String PrimitiveShader
-            {
-                get
-                {
-                    return GetStringProperty(AiMatKeys.SHADER_PRIMITIVE);
-                }
-                set
-                {
-                    SetStringProperty(AiMatKeys.SHADER_PRIMITIVE, AiMatKeys.SHADER_PRIMITIVE_BASE, value);
-                }
-            }
-
-            /// <summary>
-            /// Gets if the material has a property for compute shader source code.
-            /// </summary>
-            public bool HasComputeShader
-            {
-                get
-                {
-                    return m_parent.HasProperty(AiMatKeys.SHADER_COMPUTE);
-                }
-            }
-
-            /// <summary>
-            /// Gets or sets compute shader source code.
-            /// </summary>
-            public String ComputeShader
-            {
-                get
-                {
-                    return GetStringProperty(AiMatKeys.SHADER_COMPUTE);
-                }
-                set
-                {
-                    SetStringProperty(AiMatKeys.SHADER_COMPUTE, AiMatKeys.SHADER_COMPUTE_BASE, value);
-                }
-            }
-
-            /// <summary>
-            /// Constructs new property group accessor.
-            /// </summary>
-            /// <param name="parent">Material</param>
-            internal ShaderMaterialProperties(Material parent)
-            {
-                m_parent = parent;
-            }
-
-            private String GetStringProperty(string fullName)
-            {
-                MaterialProperty prop = m_parent.GetProperty(fullName);
-                if(prop != null)
-                    return prop.GetStringValue();
-
-                return String.Empty;
-            }
-
-            private void SetStringProperty(String fullName, String baseName, String value)
-            {
-                if(String.IsNullOrEmpty(value))
-                    value = String.Empty;
-
-                MaterialProperty prop = m_parent.GetProperty(fullName);
-                if(prop == null)
-                {
-                    prop = new MaterialProperty(baseName, value);
-                    m_parent.AddProperty(prop);
-                }
-                else
-                {
-                    prop.SetStringValue(value);
-                }
-            }
-        }
-
-        #endregion
     }
+
+    /// <summary>
+    /// Reads the unmanaged data from the native value.
+    /// </summary>
+    /// <param name="nativeValue">Input native value</param>
+    void IMarshalable<Material, AiMaterial>.FromNative(in AiMaterial nativeValue)
+    {
+        Clear();
+
+        if(nativeValue.NumProperties > 0 && nativeValue.Properties != nint.Zero)
+        {
+            var matProps = MemoryHelper.FromNativeArray<MaterialProperty, AiMaterialProperty>(nativeValue.Properties, (int) nativeValue.NumProperties, true);
+
+            foreach(var matProp in matProps)
+            {
+                AddProperty(matProp);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Frees unmanaged memory created by <see cref="IMarshalable{Material, AiMaterial}.ToNative"/>.
+    /// </summary>
+    /// <param name="nativeValue">Native value to free</param>
+    /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
+    public static void FreeNative(nint nativeValue, bool freeNative)
+    {
+        if(nativeValue == nint.Zero)
+            return;
+
+        var aiMaterial = MemoryHelper.Read<AiMaterial>(nativeValue);
+
+        if(aiMaterial.NumAllocated > 0 && aiMaterial.Properties != nint.Zero)
+            MemoryHelper.FreeNativeArray<AiMaterialProperty>(aiMaterial.Properties, (int) aiMaterial.NumProperties, MaterialProperty.FreeNative, true);
+
+        if(freeNative)
+            MemoryHelper.FreeMemory(nativeValue);
+    }
+
+    #endregion
+
+
+    #region Property Group Accessors
+
+    /// <summary>
+    /// Groups all PBR workflow properties into a single accessor.
+    /// </summary>
+    public sealed class PBRMaterialProperties
+    {
+        private readonly Material m_parent;
+
+        /// <summary>
+        /// Gets if the material has a base color map (albedo/diffuse) texture in the first texture index.
+        /// </summary>
+        public bool HasTextureBaseColor => m_parent.HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.BaseColor, 0);
+
+        /// <summary>
+        /// Gets or sets the base color map (albedo/diffuse) texture properties in the first texture index.
+        /// </summary>
+        public TextureSlot TextureBaseColor
+        {
+            get
+            {
+                m_parent.GetMaterialTexture(TextureType.BaseColor, 0, out var tex);
+
+                return tex;
+            }
+            set
+            {
+                if(value is {TextureIndex: 0, TextureType: TextureType.BaseColor})
+                    m_parent.AddMaterialTexture(value);
+            }
+        }
+
+        /// <summary>
+        /// Gets if the material has a normal map texture in the first texture index.
+        /// </summary>
+        public bool HasTextureNormalCamera => m_parent.HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.NormalCamera, 0);
+
+        /// <summary>
+        /// Gets or sets the normal map texture properties in the first texture index.
+        /// </summary>
+        public TextureSlot TextureNormalCamera
+        {
+            get
+            {
+                m_parent.GetMaterialTexture(TextureType.NormalCamera, 0, out var tex);
+
+                return tex;
+            }
+            set
+            {
+                if(value is {TextureIndex: 0, TextureType: TextureType.NormalCamera})
+                    m_parent.AddMaterialTexture(value);
+            }
+        }
+
+        /// <summary>
+        /// Gets if the material has an emission color map texture in the first texture index.
+        /// </summary>
+        public bool HasTextureEmissionColor => m_parent.HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.EmissionColor, 0);
+
+        /// <summary>
+        /// Gets or sets the emission color map texture properties in the first texture index.
+        /// </summary>
+        public TextureSlot TextureEmissionColor
+        {
+            get
+            {
+                m_parent.GetMaterialTexture(TextureType.EmissionColor, 0, out var tex);
+
+                return tex;
+            }
+            set
+            {
+                if(value is {TextureIndex: 0, TextureType: TextureType.EmissionColor})
+                    m_parent.AddMaterialTexture(value);
+            }
+        }
+
+        /// <summary>
+        /// Gets if the material has a metalness map texture in the first texture index.
+        /// </summary>
+        public bool HasTextureMetalness => m_parent.HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Metalness, 0);
+
+        /// <summary>
+        /// Gets or sets the metalness map texture properties in the first texture index.
+        /// </summary>
+        public TextureSlot TextureMetalness
+        {
+            get
+            {
+                m_parent.GetMaterialTexture(TextureType.Metalness, 0, out var tex);
+
+                return tex;
+            }
+            set
+            {
+                if(value is {TextureIndex: 0, TextureType: TextureType.Metalness})
+                    m_parent.AddMaterialTexture(value);
+            }
+        }
+
+        /// <summary>
+        /// Gets if the material has a roughness map texture in the first texture index.
+        /// </summary>
+        public bool HasTextureRoughness => m_parent.HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Roughness, 0);
+
+        /// <summary>
+        /// Gets or sets the roughness map texture properties in the first texture index.
+        /// </summary>
+        public TextureSlot TextureRoughness
+        {
+            get
+            {
+                m_parent.GetMaterialTexture(TextureType.Roughness, 0, out var tex);
+
+                return tex;
+            }
+            set
+            {
+                if(value is {TextureIndex: 0, TextureType: TextureType.Roughness})
+                    m_parent.AddMaterialTexture(value);
+            }
+        }
+
+        /// <summary>
+        /// Constructs new property group accessor.
+        /// </summary>
+        /// <param name="parent">Material</param>
+        internal PBRMaterialProperties(Material parent)
+        {
+            m_parent = parent;
+        }
+    }
+
+    /// <summary>
+    /// Groups all the properties for shader sources in a single accessor.
+    /// </summary>
+    public sealed class ShaderMaterialProperties
+    {
+        private readonly Material m_parent;
+
+        /// <summary>
+        /// Gets if the material has a property for shader language type.
+        /// </summary>
+        public bool HasShaderLanguageType => m_parent.HasProperty(AiMatKeys.GLOBAL_SHADERLANG);
+
+        /// <summary>
+        /// Gets or sets what language (HLSL, GLSL, etc) any shader source code in this material is of.
+        /// </summary>
+        public string ShaderLanguageType
+        {
+            get => GetStringProperty(AiMatKeys.GLOBAL_SHADERLANG);
+            set => SetStringProperty(AiMatKeys.GLOBAL_SHADERLANG, AiMatKeys.GLOBAL_SHADERLANG_BASE, value);
+        }
+
+        /// <summary>
+        /// Gets if the material has a property for vertex shader source code.
+        /// </summary>
+        public bool HasVertexShader => m_parent.HasProperty(AiMatKeys.SHADER_VERTEX);
+
+        /// <summary>
+        /// Gets or sets vertex shader source code.
+        /// </summary>
+        public string VertexShader
+        {
+            get => GetStringProperty(AiMatKeys.SHADER_VERTEX);
+            set => SetStringProperty(AiMatKeys.SHADER_VERTEX, AiMatKeys.SHADER_VERTEX_BASE, value);
+        }
+
+        /// <summary>
+        /// Gets if the material has a property for fragment (pixel) shader source code.
+        /// </summary>
+        public bool HasFragmentShader => m_parent.HasProperty(AiMatKeys.SHADER_FRAGMENT);
+
+        /// <summary>
+        /// Gets or sets fragment (pixel) shader source code.
+        /// </summary>
+        public string FragmentShader
+        {
+            get => GetStringProperty(AiMatKeys.SHADER_FRAGMENT);
+            set => SetStringProperty(AiMatKeys.SHADER_FRAGMENT, AiMatKeys.SHADER_FRAGMENT_BASE, value);
+        }
+
+        /// <summary>
+        /// Gets if the material has a property for geometry shader source code.
+        /// </summary>
+        public bool HasGeometryShader => m_parent.HasProperty(AiMatKeys.SHADER_GEO);
+
+        /// <summary>
+        /// Gets or sets geometry shader source code.
+        /// </summary>
+        public string GeometryShader
+        {
+            get => GetStringProperty(AiMatKeys.SHADER_GEO);
+            set => SetStringProperty(AiMatKeys.SHADER_GEO, AiMatKeys.SHADER_GEO_BASE, value);
+        }
+
+        /// <summary>
+        /// Gets if the material has a property for tesselation shader source code.
+        /// </summary>
+        public bool HasTesselationShader => m_parent.HasProperty(AiMatKeys.SHADER_TESSELATION);
+
+        /// <summary>
+        /// Gets or sets tesselation shader source code.
+        /// </summary>
+        public string TesselationShader
+        {
+            get => GetStringProperty(AiMatKeys.SHADER_TESSELATION);
+            set => SetStringProperty(AiMatKeys.SHADER_TESSELATION, AiMatKeys.SHADER_TESSELATION_BASE, value);
+        }
+
+        /// <summary>
+        /// Gets if the material has a property for primitive (domain) shader source code.
+        /// </summary>
+        public bool HasPrimitiveShader => m_parent.HasProperty(AiMatKeys.SHADER_PRIMITIVE);
+
+        /// <summary>
+        /// Gets or sets primitive (domain) shader source code.
+        /// </summary>
+        public string PrimitiveShader
+        {
+            get => GetStringProperty(AiMatKeys.SHADER_PRIMITIVE);
+            set => SetStringProperty(AiMatKeys.SHADER_PRIMITIVE, AiMatKeys.SHADER_PRIMITIVE_BASE, value);
+        }
+
+        /// <summary>
+        /// Gets if the material has a property for compute shader source code.
+        /// </summary>
+        public bool HasComputeShader => m_parent.HasProperty(AiMatKeys.SHADER_COMPUTE);
+
+        /// <summary>
+        /// Gets or sets compute shader source code.
+        /// </summary>
+        public string ComputeShader
+        {
+            get => GetStringProperty(AiMatKeys.SHADER_COMPUTE);
+            set => SetStringProperty(AiMatKeys.SHADER_COMPUTE, AiMatKeys.SHADER_COMPUTE_BASE, value);
+        }
+
+        /// <summary>
+        /// Constructs new property group accessor.
+        /// </summary>
+        /// <param name="parent">Material</param>
+        internal ShaderMaterialProperties(Material parent)
+        {
+            m_parent = parent;
+        }
+
+        private string GetStringProperty(string fullName)
+        {
+            var prop = m_parent.GetProperty(fullName);
+            if(prop != null)
+                return prop.GetStringValue();
+
+            return string.Empty;
+        }
+
+        private void SetStringProperty(string fullName, string baseName, string value)
+        {
+            if(string.IsNullOrEmpty(value))
+                value = string.Empty;
+
+            var prop = m_parent.GetProperty(fullName);
+            if(prop == null)
+            {
+                prop = new(baseName, value);
+                m_parent.AddProperty(prop);
+            }
+            else
+            {
+                prop.SetStringValue(value);
+            }
+        }
+    }
+
+    #endregion
 }

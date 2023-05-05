@@ -21,45 +21,37 @@
 */
 
 using System;
-using System.Diagnostics;
 using Assimp.Unmanaged;
 
-namespace Assimp
+namespace Assimp;
+
+/// <summary>
+/// Attribute for assocating a type with an <see cref="INativeCustomMarshaler"/> instance.
+/// </summary>
+[AttributeUsage(AttributeTargets.Struct)]
+public sealed class NativeCustomMarshalerAttribute : Attribute
 {
+    private INativeCustomMarshaler m_marshaler;
+
     /// <summary>
-    /// Attribute for assocating a type with an <see cref="INativeCustomMarshaler"/> instance.
+    /// Gets the associated marshaler.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Struct)]
-    public sealed class NativeCustomMarshalerAttribute : Attribute
+    public INativeCustomMarshaler Marshaler => m_marshaler;
+
+    /// <summary>
+    /// Constructs a new instance of the <see cref="NativeCustomMarshalerAttribute"/> class.
+    /// </summary>
+    /// <param name="type">Type that implements <see cref="INativeCustomMarshaler"/></param>
+    /// <exception cref="System.NullReferenceException">Thrown if the type is null.</exception>
+    /// <exception cref="System.ArgumentException">Thrown if the type does not implement <see cref="INativeCustomMarshaler"/>.</exception>
+    public NativeCustomMarshalerAttribute(Type type)
     {
-        private INativeCustomMarshaler m_marshaler;
+        if (type == null)
+            throw new NullReferenceException("type");
 
-        /// <summary>
-        /// Gets the associated marshaler.
-        /// </summary>
-        public INativeCustomMarshaler Marshaler
-        {
-            get
-            {
-                return m_marshaler;
-            }
-        }
+        if (!PlatformHelper.IsAssignable(typeof(INativeCustomMarshaler), type))
+            throw new ArgumentException($"{type.FullName} does not implement INativeCustomMarshaler.");
 
-        /// <summary>
-        /// Constructs a new instance of the <see cref="NativeCustomMarshalerAttribute"/> class.
-        /// </summary>
-        /// <param name="type">Type that implements <see cref="INativeCustomMarshaler"/></param>
-        /// <exception cref="System.NullReferenceException">Thrown if the type is null.</exception>
-        /// <exception cref="System.ArgumentException">Thrown if the type does not implement <see cref="INativeCustomMarshaler"/>.</exception>
-        public NativeCustomMarshalerAttribute(Type type)
-        {
-            if (type == null)
-                throw new NullReferenceException("type");
-
-            if (!PlatformHelper.IsAssignable(typeof(INativeCustomMarshaler), type))
-                throw new ArgumentException(String.Format("{0} does not implement INativeCustomMarshaler.", type.FullName));
-
-            m_marshaler = Activator.CreateInstance(type) as INativeCustomMarshaler;
-        }
+        m_marshaler = Activator.CreateInstance(type) as INativeCustomMarshaler;
     }
 }

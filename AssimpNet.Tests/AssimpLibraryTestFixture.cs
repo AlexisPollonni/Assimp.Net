@@ -21,62 +21,57 @@
 */
 
 using System;
-using System.IO;
-using System.Threading;
-using System.Collections.Generic;
-using Assimp.Configs;
 using Assimp.Unmanaged;
 using NUnit.Framework;
 
-namespace Assimp.Test
+namespace Assimp.Test;
+
+[TestFixture]
+public class AssimpLibraryTestFixture
 {
-    [TestFixture]
-    public class AssimpLibraryTestFixture
+
+    [Test, Parallelizable(ParallelScope.Self)]
+    public void TestMultiThreaded()
     {
-
-        [Test, Parallelizable(ParallelScope.Self)]
-        public void TestMultiThreaded()
-        {
-            Assert.That(AssimpLibrary.Instance.IsMultithreadingSupported, Is.True);
-        }
-
-        [Test, Parallelizable(ParallelScope.Self)]
-        public void DisplayCompileFlags()
-        {
-            var assimpInstance = AssimpLibrary.Instance;
-            var flags = assimpInstance.GetCompileFlags();
-            if (flags.HasFlag(CompileFlags.SingleThreaded))
-            {
-                Console.WriteLine("Built as SingleThreaded");
-                Assert.That(assimpInstance.IsMultithreadingSupported, Is.False);
-            }
-            if (flags.HasFlag(CompileFlags.Shared))
-            {
-                Console.WriteLine("Built as Shared");
-            }
-            if (flags.HasFlag(CompileFlags.Debug))
-            {
-                Console.WriteLine("Built as Debug");
-            }
-            if (flags.HasFlag(CompileFlags.NoBoost))
-            {
-                Console.WriteLine("Built without Boost");
-                Assert.That(assimpInstance.IsMultithreadingSupported, Is.False);
-            }
-            if (flags.HasFlag(CompileFlags.STLport))
-            {
-                Console.WriteLine("Built with STLport");
-            }
-        }
-
-        [Test, Parallelizable(ParallelScope.Self)]
-        public void DisplayVersion()
-        {
-            var assimpInstance = AssimpLibrary.Instance;
-            Console.WriteLine($"version: {assimpInstance.GetVersion()}");
-            Console.WriteLine($"branch: {assimpInstance.GetBranchName()}\n");
-            Console.WriteLine(assimpInstance.GetLegalString());
-        }
-
+        Assert.That(AssimpLibrary.Instance.IsMultithreadingSupported, Is.True);
     }
+
+    [Test, Parallelizable(ParallelScope.Self)]
+    public void DisplayCompileFlags()
+    {
+        var assimpInstance = AssimpLibrary.Instance;
+        var flags = assimpInstance.GetCompileFlags();
+        if (flags.HasFlag(CompileFlags.SingleThreaded))
+        {
+            Console.WriteLine("Built as SingleThreaded");
+            Assert.That(assimpInstance.IsMultithreadingSupported, Is.False);
+        }
+        if (flags.HasFlag(CompileFlags.Shared))
+        {
+            Console.WriteLine("Built as Shared");
+        }
+        if (flags.HasFlag(CompileFlags.Debug))
+        {
+            Console.WriteLine("Built as Debug");
+        }
+        if (flags.HasFlag(CompileFlags.NoBoost))
+        {
+            Console.WriteLine("Built without Boost");
+            Assert.That(assimpInstance.IsMultithreadingSupported, Is.False);
+        }
+        if (flags.HasFlag(CompileFlags.STLport))
+        {
+            Console.WriteLine("Built with STLport");
+        }
+    }
+
+    [Test, Parallelizable(ParallelScope.Self)]
+    public void DisplayVersion()
+    {
+        var assimpInstance = AssimpLibrary.Instance;
+        Console.WriteLine($"version: {assimpInstance.GetVersion()}");
+        Console.WriteLine($"branch: {assimpInstance.GetBranchName()}\n");
+        Console.WriteLine(assimpInstance.GetLegalString());
+    }
+
 }

@@ -20,9 +20,7 @@
 * THE SOFTWARE.
 */
 
-using System;
 using System.IO;
-using NUnit.Framework;
 using NUnit.Framework.Internal;
 
 namespace Assimp.Test; 
@@ -38,7 +36,7 @@ public class TestContextLogStream : LogStream
   /// <summary>
   /// Constructs a new test context log stream.
   /// </summary>
-  public TestContextLogStream() : base()
+  public TestContextLogStream()
   {
     m_writer = TestExecutionContext.CurrentContext.OutWriter;
   }
@@ -47,7 +45,7 @@ public class TestContextLogStream : LogStream
   /// Constructs a new test context log stream.
   /// </summary>
   /// <param name="userData">User supplied data</param>
-  public TestContextLogStream(String userData) : base(userData)
+  public TestContextLogStream(string userData) : base(userData)
   {
     m_writer = TestExecutionContext.CurrentContext.OutWriter;
   }
@@ -57,10 +55,10 @@ public class TestContextLogStream : LogStream
   /// </summary>
   /// <param name="msg">Message</param>
   /// <param name="userData">Userdata</param>
-  protected override void LogMessage(String msg, String userData)
+  protected override void LogMessage(string msg, string userData)
   {
     m_writer.Write(
-      String.IsNullOrEmpty(userData)
+      string.IsNullOrEmpty(userData)
         ? msg
         : $"{userData}: {msg}"
     );

@@ -20,62 +20,59 @@
 * THE SOFTWARE.
 */
 
-using System;
+namespace Assimp;
 
-namespace Assimp
+/// <summary>
+/// Represents an object that can be marshaled to and from a native representation.
+/// </summary>
+/// <typeparam name="TManaged">Managed object type</typeparam>
+/// <typeparam name="TNative">Native value type</typeparam>
+public interface IMarshalable<TManaged, TNative>
+    where TManaged : class, new()
+    where TNative : struct
 {
     /// <summary>
-    /// Represents an object that can be marshaled to and from a native representation.
+    /// Gets if the native value type is blittable (that is, does not require marshaling by the runtime, e.g. has MarshalAs attributes).
     /// </summary>
-    /// <typeparam name="Managed">Managed object type</typeparam>
-    /// <typeparam name="Native">Native value type</typeparam>
-    public interface IMarshalable<Managed, Native>
-        where Managed : class, new()
-        where Native : struct
-    {
-        /// <summary>
-        /// Gets if the native value type is blittable (that is, does not require marshaling by the runtime, e.g. has MarshalAs attributes).
-        /// </summary>
-        bool IsNativeBlittable { get; }
-
-        /// <summary>
-        /// Writes the managed data to the native value.
-        /// </summary>
-        /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
-        /// <param name="nativeValue">Output native value</param>
-        void ToNative(IntPtr thisPtr, out Native nativeValue);
-
-        /// <summary>
-        /// Reads the unmanaged data from the native value.
-        /// </summary>
-        /// <param name="nativeValue">Input native value</param>
-        void FromNative(in Native nativeValue);
-    }
+    bool IsNativeBlittable { get; }
 
     /// <summary>
-    /// Custom marshaler for usage with the <see cref="MemoryHelper"/> for performing marshaling
-    /// to-and-from unmanaged memory for non-blittable types. A type must be attributed with <see cref="NativeCustomMarshalerAttribute"/>
-    /// to automatically have an instance of its marshaler be utilized.
+    /// Writes the managed data to the native value.
     /// </summary>
-    public interface INativeCustomMarshaler
-    {
-        /// <summary>
-        /// Gets the native data size in bytes.
-        /// </summary>
-        int NativeDataSize { get; }
+    /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
+    /// <param name="nativeValue">Output native value</param>
+    void ToNative(nint thisPtr, out TNative nativeValue);
 
-        /// <summary>
-        /// Marshals the managed object to the unmanaged chunk of memory.
-        /// </summary>
-        /// <param name="managedObj">Managed object to marshal.</param>
-        /// <param name="nativeData">Unmanaged chunk of memory to write to.</param>
-        void MarshalManagedToNative(Object managedObj, IntPtr nativeData);
+    /// <summary>
+    /// Reads the unmanaged data from the native value.
+    /// </summary>
+    /// <param name="nativeValue">Input native value</param>
+    void FromNative(in TNative nativeValue);
+}
 
-        /// <summary>
-        /// Marshals the managed object from the unmanaged chunk of memory.
-        /// </summary>
-        /// <param name="nativeData">Unmanaged chunk of memory to read from.</param>
-        /// <returns>Managed object marshaled.</returns>
-        Object MarshalNativeToManaged(IntPtr nativeData);
-    }
+/// <summary>
+/// Custom marshaler for usage with the <see cref="MemoryHelper"/> for performing marshaling
+/// to-and-from unmanaged memory for non-blittable types. A type must be attributed with <see cref="NativeCustomMarshalerAttribute"/>
+/// to automatically have an instance of its marshaler be utilized.
+/// </summary>
+public interface INativeCustomMarshaler
+{
+    /// <summary>
+    /// Gets the native data size in bytes.
+    /// </summary>
+    int NativeDataSize { get; }
+
+    /// <summary>
+    /// Marshals the managed object to the unmanaged chunk of memory.
+    /// </summary>
+    /// <param name="managedObj">Managed object to marshal.</param>
+    /// <param name="nativeData">Unmanaged chunk of memory to write to.</param>
+    void MarshalManagedToNative(object managedObj, nint nativeData);
+
+    /// <summary>
+    /// Marshals the managed object from the unmanaged chunk of memory.
+    /// </summary>
+    /// <param name="nativeData">Unmanaged chunk of memory to read from.</param>
+    /// <returns>Managed object marshaled.</returns>
+    object MarshalNativeToManaged(nint nativeData);
 }
