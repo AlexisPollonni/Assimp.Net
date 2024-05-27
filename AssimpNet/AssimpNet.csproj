@@ -38,9 +38,9 @@
   
   <ItemGroup>
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
-    <PackageReference Include="StirlingLabs.assimp.native.linux-x64" Version="*" />
-    <PackageReference Include="StirlingLabs.assimp.native.osx" Version="*" />
-    <PackageReference Include="StirlingLabs.assimp.native.win-x64" Version="*" />
+    <PackageReference Include="StirlingLabs.assimp.native.linux-x64" Version="5.2.5.4" />
+    <PackageReference Include="StirlingLabs.assimp.native.osx" Version="5.2.5.4" />
+    <PackageReference Include="StirlingLabs.assimp.native.win-x64" Version="5.2.5.4" />
   </ItemGroup>
   
   <ItemGroup Condition="$(TargetFramework.StartsWith('netstandard'))">
