@@ -56,7 +56,7 @@ public sealed class Face : IMarshalable<Face, AiFace>
     /// </summary>
     public Face()
     {
-        Indices = new();
+        Indices = [];
     }
 
     /// <summary>
@@ -65,7 +65,7 @@ public sealed class Face : IMarshalable<Face, AiFace>
     /// <param name="indices">Face indices</param>
     public Face(int[] indices)
     {
-        Indices = new();
+        Indices = [];
 
         if(indices != null)
             Indices.AddRange(indices);

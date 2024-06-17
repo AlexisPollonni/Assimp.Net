@@ -323,7 +323,8 @@ public sealed class Metadata : Dictionary<string, Metadata.Entry>, IMarshalable<
         /// <returns>A <see cref="T:System.String" /> containing a fully qualified type name.</returns>
         public override string ToString()
         {
-            return string.Format(CultureInfo.CurrentCulture, "DataType: {0}, Data: {1}", new object[] { DataType.ToString(), Data == null ? "null" : Data.ToString() });
+            return string.Format(CultureInfo.CurrentCulture, "DataType: {0}, Data: {1}", [DataType.ToString(), Data == null ? "null" : Data.ToString()
+            ]);
         }
     }
 }

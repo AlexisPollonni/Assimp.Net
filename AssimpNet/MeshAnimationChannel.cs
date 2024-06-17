@@ -61,7 +61,7 @@ public sealed class MeshAnimationChannel : IMarshalable<MeshAnimationChannel, Ai
     public MeshAnimationChannel()
     {
         MeshName = string.Empty;
-        MeshKeys = new();
+        MeshKeys = [];
     }
 
     #region IMarshalable Implementation

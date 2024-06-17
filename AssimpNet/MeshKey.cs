@@ -144,6 +144,6 @@ public struct MeshKey : IEquatable<MeshKey>
     {
         var info = CultureInfo.CurrentCulture;
         return string.Format(info, "{{Time:{0} Index:{1}}}",
-            new object[] { Time.ToString(info), Value.ToString(info) });
+            [Time.ToString(info), Value.ToString(info)]);
     }
 }

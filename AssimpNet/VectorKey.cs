@@ -140,6 +140,6 @@ public struct VectorKey : IEquatable<VectorKey>
     {
         var info = CultureInfo.CurrentCulture;
         return string.Format(info, "{{Time:{0} Vector:{1}}}",
-            new object[] { Time.ToString(info), Value.ToString() });
+            [Time.ToString(info), Value.ToString()]);
     }
 }

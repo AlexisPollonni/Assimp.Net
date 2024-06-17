@@ -159,12 +159,12 @@ public sealed class Scene : IMarshalable<Scene, AiScene>
     {
         SceneFlags = SceneFlags.None;
         RootNode = null;
-        Meshes = new();
-        Lights = new();
-        Cameras = new();
-        Textures = new();
-        Animations = new();
-        Materials = new();
+        Meshes = [];
+        Lights = [];
+        Cameras = [];
+        Textures = [];
+        Animations = [];
+        Materials = [];
         Metadata = new();
         Name = string.Empty;
     }

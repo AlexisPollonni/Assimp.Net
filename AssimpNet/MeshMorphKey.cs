@@ -52,8 +52,8 @@ public sealed class MeshMorphKey : IMarshalable<MeshMorphKey, AiMeshMorphKey>
     public MeshMorphKey()
     {
         Time = 0.0;
-        Values = new();
-        Weights = new();
+        Values = [];
+        Weights = [];
     }
 
     #region IMarshalable Implementation

@@ -47,7 +47,7 @@ public class LogStream : IDisposable
     
   private static ImmutableList<LogStream> s_attachedLogStreams = ImmutableList<LogStream>.Empty;
     
-  private static readonly ThreadLocal<HashSet<LogStream>> s_tlsLogStreams = new(() => new());
+  private static readonly ThreadLocal<HashSet<LogStream>> s_tlsLogStreams = new(() => []);
 
   private static HashSet<LogStream> s_logStreams => s_tlsLogStreams.Value;
     

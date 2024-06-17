@@ -172,7 +172,7 @@ public sealed class AssimpLibrary : UnmanagedLibrary
         var count = (int) GetFunction<Functions.aiGetExportFormatCount>(FunctionNames.aiGetExportFormatCount)().ToUInt32();
 
         if(count == 0)
-            return Array.Empty<ExportFormatDescription>();
+            return [];
 
         var descriptions = new ExportFormatDescription[count];
 

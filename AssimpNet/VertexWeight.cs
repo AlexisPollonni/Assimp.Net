@@ -63,6 +63,6 @@ public struct VertexWeight
     {
         var info = CultureInfo.CurrentCulture;
         return string.Format(info, "{{VertexID:{0} Weight:{1}}}",
-            new object[] { VertexID.ToString(info), Weight.ToString(info) });
+            [VertexID.ToString(info), Weight.ToString(info)]);
     }
 }

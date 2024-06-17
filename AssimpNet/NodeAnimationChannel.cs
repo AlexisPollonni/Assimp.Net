@@ -115,9 +115,9 @@ public sealed class NodeAnimationChannel : IMarshalable<NodeAnimationChannel, Ai
         PreState = AnimationBehaviour.Default;
         PostState = AnimationBehaviour.Default;
 
-        PositionKeys = new();
-        RotationKeys = new();
-        ScalingKeys = new();
+        PositionKeys = [];
+        RotationKeys = [];
+        ScalingKeys = [];
     }
 
     #region IMarshalable Implementation

@@ -47,7 +47,7 @@ public class FileIOSystem : IOSystem
     /// <param name="searchPaths">Search directories to search for files in</param>
     public FileIOSystem(params string[] searchPaths)
     {
-        m_searchDirectories = new();
+        m_searchDirectories = [];
 
         SetSearchDirectories(searchPaths);
     }

@@ -98,9 +98,9 @@ public sealed class Animation : IMarshalable<Animation, AiAnimation>
         Name = string.Empty;
         DurationInTicks = 0;
         TicksPerSecond = 0;
-        NodeAnimationChannels = new();
-        MeshAnimationChannels = new();
-        MeshMorphAnimationChannels = new();
+        NodeAnimationChannels = [];
+        MeshAnimationChannels = [];
+        MeshMorphAnimationChannels = [];
     }
 
     #region IMarshalable Implementation

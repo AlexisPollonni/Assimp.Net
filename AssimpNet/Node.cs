@@ -91,7 +91,7 @@ public sealed class Node : IMarshalable<Node, AiNode>
         Transform = Matrix4x4.Identity;
         Parent = null;
         Children = new(this);
-        MeshIndices = new();
+        MeshIndices = [];
         Metadata = new();
     }
 

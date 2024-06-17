@@ -168,7 +168,7 @@ public static class MemoryHelper
         where TNative : struct
     {
         if(nativeArray == nint.Zero || length == 0)
-            return Array.Empty<TManaged>();
+            return [];
 
         //If the pointer is a void** we need to step by the pointer size, otherwise it's just a void* and step by the type size.
         var stride = arrayOfPointers ? nint.Size : MarshalSizeOf<TNative>();
@@ -213,16 +213,16 @@ public static class MemoryHelper
     /// <typeparam name="T">Struct type</typeparam>
     /// <param name="managedArray">Managed array of structs</param>
     /// <returns>Pointer to unmanaged memory</returns>
-    public static nint ToNativeArray<T>(T[] managedArray) where T : struct
+    public static unsafe T* ToNativeArray<T>(ReadOnlySpan<T> managedArray) where T : unmanaged
     {
         if(managedArray == null || managedArray.Length == 0)
-            return nint.Zero;
+            return null;
 
         var ptr = AllocateMemory(SizeOf<T>() * managedArray.Length);
 
         Write(ptr, managedArray, 0, managedArray.Length);
 
-        return ptr;
+        return (T*)ptr;
     }
 
     /// <summary>
@@ -233,10 +233,10 @@ public static class MemoryHelper
     /// <param name="nativeArray">Pointer to unmanaged memory</param>
     /// <param name="length">Number of elements to read</param>
     /// <returns>Managed array</returns>
-    public static T[] FromNativeArray<T>(nint nativeArray, int length) where T : struct
+    public static unsafe T[] FromNativeArray<T>(T* nativeArray, int length) where T : unmanaged
     {
-        if(nativeArray == nint.Zero || length == 0)
-            return Array.Empty<T>();
+        if(nativeArray is null || length == 0)
+            return [];
 
         var managedArray = new T[length];
 
@@ -593,6 +593,8 @@ public static class MemoryHelper
         Marshal.FreeHGlobal(((nint*) memoryPtr)[-1]);
     }
 
+    public static unsafe void FreeMemory<T>(T* ptr) where T : unmanaged => FreeMemory((nint)ptr);
+
     /// <summary>
     /// Checks if the memory is aligned to the specified alignment.
     /// </summary>
@@ -852,7 +854,7 @@ public static class MemoryHelper
 
         fixed (void* pBuffer = buffer)
         {
-            Write((nint) pBuffer, source, 0, source.Length);
+            Write<T>((nint) pBuffer, source, 0, source.Length);
         }
 
         return buffer;
@@ -864,7 +866,7 @@ public static class MemoryHelper
     /// <typeparam name="T">Struct type</typeparam>
     /// <param name="source">Byte array</param>
     /// <returns>Typed element array or null if the source array was not valid.</returns>
-    public static unsafe T[] FromByteArray<T>(byte[] source) where T : struct
+    public static unsafe T[] FromByteArray<T>(byte[] source) where T : unmanaged
     {
         if(source == null || source.Length == 0)
             return null;
@@ -873,7 +875,7 @@ public static class MemoryHelper
 
         fixed (void* pBuffer = source)
         {
-            Read((nint) pBuffer, buffer, 0, buffer.Length);
+            Read((T*)pBuffer, buffer, 0, buffer.Length);
         }
 
         return buffer;
@@ -888,7 +890,7 @@ public static class MemoryHelper
     /// <param name="destArray">Destination element array</param>
     /// <param name="destStartIndex">Starting index in destination array</param>
     /// <param name="count">Number of elements to copy</param>
-    public static unsafe void CopyBytes<T>(byte[] srcArray, int srcStartIndex, T[] destArray, int destStartIndex, int count) where T : struct
+    public static unsafe void CopyBytes<T>(byte[] srcArray, int srcStartIndex, T[] destArray, int destStartIndex, int count) where T : unmanaged
     {
         if(srcArray == null || srcArray.Length == 0 || destArray == null || destArray.Length == 0)
             return;
@@ -898,9 +900,9 @@ public static class MemoryHelper
         if(srcStartIndex < 0 || srcStartIndex + byteCount > srcArray.Length || destStartIndex < 0 || destStartIndex + count > destArray.Length)
             return;
 
-        fixed (void* pBuffer = &srcArray[srcStartIndex])
+        fixed (byte* pBuffer = &srcArray[srcStartIndex])
         {
-            Read((nint) pBuffer, destArray, destStartIndex, count);
+            Read((T*)pBuffer, destArray, destStartIndex, count);
         }
     }
 
@@ -925,7 +927,7 @@ public static class MemoryHelper
 
         fixed (void* pBuffer = &destArray[destStartIndex])
         {
-            Write((nint) pBuffer, srcArray, srcStartIndex, count);
+            Write<T>((nint) pBuffer, srcArray, srcStartIndex, count);
         }
     }
 
@@ -937,9 +939,9 @@ public static class MemoryHelper
     /// <param name="data">Array to store the copied data</param>
     /// <param name="startIndexInArray">Zero-based element index to start writing data to in the element array.</param>
     /// <param name="count">Number of elements to copy</param>
-    public static unsafe void Read<T>(nint pSrc, T[] data, int startIndexInArray, int count) where T : struct
+    public static unsafe void Read<T>(T* pSrc, T[] data, int startIndexInArray, int count) where T : unmanaged
     {
-        var src = new ReadOnlySpan<T>(pSrc.ToPointer(), count);
+        var src = new ReadOnlySpan<T>(pSrc, count);
         var dst = new Span<T>(data, startIndexInArray, count);
         src.CopyTo(dst);
     }
@@ -974,9 +976,9 @@ public static class MemoryHelper
     /// <param name="data">Array containing data to write</param>
     /// <param name="startIndexInArray">Zero-based element index to start reading data from in the element array.</param>
     /// <param name="count">Number of elements to copy</param>
-    public static unsafe void Write<T>(nint pDest, T[] data, int startIndexInArray, int count) where T : struct
+    public static unsafe void Write<T>(nint pDest, ReadOnlySpan<T> data, int startIndexInArray, int count) where T : struct
     {
-        var src = new ReadOnlySpan<T>(data, startIndexInArray, count);
+        var src = data.Slice(startIndexInArray, count);
         var dst = new Span<T>(pDest.ToPointer(), count);
         src.CopyTo(dst);
     }

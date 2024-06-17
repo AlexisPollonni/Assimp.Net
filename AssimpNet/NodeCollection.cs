@@ -74,7 +74,7 @@ public sealed class NodeCollection : IList<Node>
     internal NodeCollection(Node parent)
     {
         m_parent = parent;
-        m_children = new();
+        m_children = [];
     }
 
     /// <summary>

@@ -37,6 +37,7 @@
   </PropertyGroup>
   
   <ItemGroup>
+    <PackageReference Include="Silk.NET.Assimp" Version="2.21.0" />
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
     <PackageReference Include="StirlingLabs.assimp.native.linux-x64" Version="5.2.5.4" />
     <PackageReference Include="StirlingLabs.assimp.native.osx" Version="5.2.5.4" />
@@ -58,16 +59,5 @@
   <Target Name="CopyBuildFiles" AfterTargets="AfterBuild">
     <Copy SourceFiles="%(Content.Identity)" DestinationFiles="bin\$(Configuration)\%(Content.Link)" SkipUnchangedFiles="true" Condition="'%(Content.Link)' != ''" />
   </Target>
-
-  <ItemGroup>
-    <None Include="StirlingLabs.Assimp.Net.props">
-      <Pack>true</Pack>
-      <PackagePath>build;buildCrossTargeting</PackagePath>
-    </None>
-    <None Include="StirlingLabs.Assimp.Net.targets">
-      <Pack>true</Pack>
-      <PackagePath>build;buildCrossTargeting</PackagePath>
-    </None>
-  </ItemGroup>
 
 </Project>

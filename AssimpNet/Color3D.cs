@@ -355,6 +355,6 @@ public struct Color3D
     {
         var info = CultureInfo.CurrentCulture;
         return string.Format(info, "{{R:{0} G:{1} B:{2}}}",
-            new object[] { R.ToString(info), G.ToString(info), B.ToString(info) });
+            [R.ToString(info), G.ToString(info), B.ToString(info)]);
     }
 }

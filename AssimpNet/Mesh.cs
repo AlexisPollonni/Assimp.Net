@@ -20,8 +20,14 @@
 * THE SOFTWARE.
 */
 
+using System;
 using System.Collections.Generic;
+using System.Numerics;
+using System.Runtime.InteropServices;
 using Assimp.Unmanaged;
+using Silk.NET.Assimp;
+using Silk.NET.Maths;
+using AiMesh = Silk.NET.Assimp.Mesh;
 
 namespace Assimp;
 
@@ -66,7 +72,7 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
     /// <summary>
     /// Gets the vertex position list.
     /// </summary>
-    public List<Vector3D> Vertices { get; }
+    public List<Vector3> Vertices { get; }
 
     /// <summary>
     /// Gets if the mesh as normals. If it does exist, the count should be the same as the vertex count.
@@ -76,7 +82,7 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
     /// <summary>
     /// Gets the vertex normal list.
     /// </summary>
-    public List<Vector3D> Normals { get; }
+    public List<Vector3> Normals { get; }
 
     /// <summary>
     /// Gets if the mesh has tangents and bitangents. It is not
@@ -87,12 +93,12 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
     /// <summary>
     /// Gets the vertex tangent list.
     /// </summary>
-    public List<Vector3D> Tangents { get; }
+    public List<Vector3> Tangents { get; }
 
     /// <summary>
     /// Gets the vertex bitangent list.
     /// </summary>
-    public List<Vector3D> BiTangents { get; }
+    public List<Vector3> BiTangents { get; }
 
     /// <summary>
     /// Gets the number of faces contained in the mesh.
@@ -161,7 +167,7 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
     /// Gets the array that contains each texture coordinate channel, by default all are lists of zero (but can be set to null). Each index
     /// in the array corresponds to the texture coordinate channel. The length of the array corresponds to Assimp's maximum UV channel limit.
     /// </summary>
-    public List<Vector3D>[] TextureCoordinateChannels { get; }
+    public List<Vector3>[] TextureCoordinateChannels { get; }
 
     /// <summary>
     /// Gets the array that contains the count of UV(W) components for each texture coordinate channel, usually 2 (UV) or 3 (UVW). A component
@@ -203,12 +209,12 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
     /// <summary>
     /// Gets or sets the morph method used when animation attachments are used.
     /// </summary>
-    public MeshMorphingMethod MorphMethod { get; set; }
+    public MorphingMethod MorphMethod { get; set; }
 
     /// <summary>
     /// Gets or sets the axis aligned bounding box that contains the extents of the mesh.
     /// </summary>
-    public BoundingBox BoundingBox { get; set; }
+    public Box3D<float> BoundingBox { get; set; }
 
     /// <summary>
     /// Constructs a new instance of the <see cref="Mesh"/> class.
@@ -237,30 +243,30 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
         Name = name;
         PrimitiveType = primType;
         MaterialIndex = 0;
-        MorphMethod = MeshMorphingMethod.None;
+        MorphMethod = MorphingMethod.Unknown;
 
-        Vertices = new();
-        Normals = new();
-        Tangents = new();
-        BiTangents = new();
+        Vertices = [];
+        Normals = [];
+        Tangents = [];
+        BiTangents = [];
         VertexColorChannels = new List<Color4D>[AiDefines.AI_MAX_NUMBER_OF_COLOR_SETS];
 
         for(var i = 0; i < VertexColorChannels.Length; i++)
         {
-            VertexColorChannels[i] = new();
+            VertexColorChannels[i] = [];
         }
 
-        TextureCoordinateChannels = new List<Vector3D>[AiDefines.AI_MAX_NUMBER_OF_TEXTURECOORDS];
+        TextureCoordinateChannels = new List<Vector3>[AiDefines.AI_MAX_NUMBER_OF_TEXTURECOORDS];
 
         for(var i = 0; i < TextureCoordinateChannels.Length; i++)
         {
-            TextureCoordinateChannels[i] = new();
+            TextureCoordinateChannels[i] = [];
         }
 
         UVComponentCount = new int[AiDefines.AI_MAX_NUMBER_OF_TEXTURECOORDS];
-        Bones = new();
-        Faces = new();
-        MeshAnimationAttachments = new();
+        Bones = [];
+        Faces = [];
+        MeshAnimationAttachments = [];
     }
 
     /// <summary>
@@ -419,7 +425,7 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
             var colors = VertexColorChannels[i];
 
             if(colors == null)
-                VertexColorChannels[i] = new();
+                VertexColorChannels[i] = [];
             else
                 colors.Clear();
         }
@@ -429,7 +435,7 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
             var texCoords = TextureCoordinateChannels[i];
 
             if(texCoords == null)
-                TextureCoordinateChannels[i] = new();
+                TextureCoordinateChannels[i] = [];
             else
                 texCoords.Clear();
         }
@@ -444,7 +450,7 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
         MeshAnimationAttachments.Clear();
     }
 
-    private Vector3D[] CopyTo(List<Vector3D> list, Vector3D[] copy)
+    private Vector3[] CopyTo(List<Vector3> list, Vector3[] copy)
     {
         list.CopyTo(copy);
 
@@ -463,44 +469,43 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
     /// </summary>
     /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
     /// <param name="nativeValue">Output native value</param>
-    void IMarshalable<Mesh, AiMesh>.ToNative(nint thisPtr, out AiMesh nativeValue)
+    unsafe void IMarshalable<Mesh, AiMesh>.ToNative(nint thisPtr, out AiMesh nativeValue)
     {
-        nativeValue.Name = new(Name);
-        nativeValue.Vertices = nint.Zero;
-        nativeValue.Normals = nint.Zero;
-        nativeValue.Tangents = nint.Zero;
-        nativeValue.BiTangents = nint.Zero;
-        nativeValue.AnimMeshes = nint.Zero;
-        nativeValue.Bones = nint.Zero;
-        nativeValue.Faces = nint.Zero;
-        nativeValue.Colors = new();
-        nativeValue.TextureCoords = new();
-        nativeValue.NumUVComponents = new();
-        nativeValue.PrimitiveTypes = PrimitiveType;
-        nativeValue.MaterialIndex = (uint) MaterialIndex;
-        nativeValue.NumVertices = (uint) VertexCount;
-        nativeValue.NumBones = (uint) BoneCount;
-        nativeValue.NumFaces = (uint) FaceCount;
-        nativeValue.NumAnimMeshes = (uint) MeshAnimationAttachmentCount;
-        nativeValue.MorphMethod = MorphMethod;
-        nativeValue.AABB = BoundingBox;
-        nativeValue.TextureCoordsNames = nint.Zero;
+        nativeValue.MName = new(Name);
+        nativeValue.MVertices = null;
+        nativeValue.MNormals = null;
+        nativeValue.MTangents = null;
+        nativeValue.MBitangents = null;
+        nativeValue.MAnimMeshes = null;
+        nativeValue.MBones = null;
+        nativeValue.MFaces = null;
+        nativeValue.MColors = new();
+        nativeValue.MTextureCoords = new();
+        nativeValue.MPrimitiveTypes = (uint)PrimitiveType;
+        nativeValue.MMaterialIndex = (uint) MaterialIndex;
+        nativeValue.MNumVertices = (uint) VertexCount;
+        nativeValue.MNumBones = (uint) BoneCount;
+        nativeValue.MNumFaces = (uint) FaceCount;
+        nativeValue.MNumAnimMeshes = (uint) MeshAnimationAttachmentCount;
+        nativeValue.MMethod = MorphMethod;
+        nativeValue.MAABB = BoundingBox;
+        nativeValue.MTextureCoordsNames = null;
 
-        if(nativeValue.NumVertices > 0)
+        if(nativeValue.MNumVertices > 0)
         {
 
-            //Since we can have so many buffers of Vector3D with same length, lets re-use a buffer
-            var copy = new Vector3D[nativeValue.NumVertices];
+            //Since we can have so many buffers of Vector3 with same length, lets re-use a buffer
+            var copy = new Vector3[nativeValue.MNumVertices];
 
-            nativeValue.Vertices = MemoryHelper.ToNativeArray(CopyTo(Vertices, copy));
+            nativeValue.MVertices = MemoryHelper.ToNativeArray<Vector3>(CopyTo(Vertices, copy));
 
             if(HasNormals)
-                nativeValue.Normals = MemoryHelper.ToNativeArray(CopyTo(Normals, copy));
+                nativeValue.MNormals = MemoryHelper.ToNativeArray<Vector3>(CopyTo(Normals, copy));
 
             if(HasTangentBasis)
             {
-                nativeValue.Tangents = MemoryHelper.ToNativeArray(CopyTo(Tangents, copy));
-                nativeValue.BiTangents = MemoryHelper.ToNativeArray(CopyTo(BiTangents, copy));
+                nativeValue.MTangents = MemoryHelper.ToNativeArray<Vector3>(CopyTo(Tangents, copy));
+                nativeValue.MBitangents = MemoryHelper.ToNativeArray<Vector3>(CopyTo(BiTangents, copy));
             }
 
             //Vertex Color channels
@@ -510,11 +515,11 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
 
                 if(list == null || list.Count == 0)
                 {
-                    nativeValue.Colors[i] = nint.Zero;
+                    nativeValue.MColors[i] = null;
                 }
                 else
                 {
-                    nativeValue.Colors[i] = MemoryHelper.ToNativeArray(list.ToArray());
+                    nativeValue.MColors[i] = (Vector4*)MemoryHelper.ToNativeArray<Color4D>(CollectionsMarshal.AsSpan(list));
                 }
             }
 
@@ -525,105 +530,105 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
 
                 if(list == null || list.Count == 0)
                 {
-                    nativeValue.TextureCoords[i] = nint.Zero;
+                    nativeValue.MTextureCoords[i] = null;
                 }
                 else
                 {
-                    nativeValue.TextureCoords[i] = MemoryHelper.ToNativeArray(CopyTo(list, copy));
+                    nativeValue.MTextureCoords[i] = MemoryHelper.ToNativeArray<Vector3>(CopyTo(list, copy));
                 }
             }
 
             //UV components for each tex coordinate channel
             for(var i = 0; i < UVComponentCount.Length; i++)
             {
-                nativeValue.NumUVComponents[i] = (uint) UVComponentCount[i];
+                nativeValue.MNumUVComponents[i] = (uint) UVComponentCount[i];
             }
         }
 
         //Faces
-        if(nativeValue.NumFaces > 0)
-            nativeValue.Faces = MemoryHelper.ToNativeArray<Face, AiFace>(Faces.ToArray());
+        if(nativeValue.MNumFaces > 0)
+            nativeValue.MFaces = MemoryHelper.ToNativeArray<Face, AiFace>(Faces.ToArray());
 
         //Bones
-        if(nativeValue.NumBones > 0)
-            nativeValue.Bones = MemoryHelper.ToNativeArray<Bone, AiBone>(Bones.ToArray(), true);
+        if(nativeValue.MNumBones > 0)
+            nativeValue.MBones = MemoryHelper.ToNativeArray<Bone, AiBone>(Bones.ToArray(), true);
 
         //Attachment meshes
-        if(nativeValue.NumAnimMeshes > 0)
-            nativeValue.AnimMeshes = MemoryHelper.ToNativeArray<MeshAnimationAttachment, AiAnimMesh>(MeshAnimationAttachments.ToArray());
+        if(nativeValue.MNumAnimMeshes > 0)
+            nativeValue.MAnimMeshes = MemoryHelper.ToNativeArray<MeshAnimationAttachment, AiAnimMesh>(MeshAnimationAttachments.ToArray());
     }
 
     /// <summary>
     /// Reads the unmanaged data from the native value.
     /// </summary>
     /// <param name="nativeValue">Input native value</param>
-    void IMarshalable<Mesh, AiMesh>.FromNative(in AiMesh nativeValue)
+    unsafe void IMarshalable<Mesh, AiMesh>.FromNative(in AiMesh nativeValue)
     {
         ClearBuffers();
 
-        var vertexCount = (int) nativeValue.NumVertices;
-        Name = AiString.GetString(nativeValue.Name); //Avoid struct copy
-        MaterialIndex = (int) nativeValue.MaterialIndex;
-        MorphMethod = nativeValue.MorphMethod;
-        BoundingBox = nativeValue.AABB;
-        PrimitiveType = nativeValue.PrimitiveTypes;       
+        var vertexCount = (int) nativeValue.MNumVertices;
+        Name = nativeValue.MName; //Avoid struct copy
+        MaterialIndex = (int) nativeValue.MMaterialIndex;
+        MorphMethod = nativeValue.MMethod;
+        BoundingBox = nativeValue.MAABB;
+        PrimitiveType = (PrimitiveType)nativeValue.MPrimitiveTypes;       
 
         //Load Per-vertex components
         if(vertexCount > 0)
         {
 
             //Positions
-            if(nativeValue.Vertices != nint.Zero)
-                Vertices.AddRange(MemoryHelper.FromNativeArray<Vector3D>(nativeValue.Vertices, vertexCount));
+            if(nativeValue.MVertices != null)
+                Vertices.AddRange(MemoryHelper.FromNativeArray(nativeValue.MVertices, vertexCount));
 
             //Normals
-            if(nativeValue.Normals != nint.Zero)
-                Normals.AddRange(MemoryHelper.FromNativeArray<Vector3D>(nativeValue.Normals, vertexCount));
+            if(nativeValue.MNormals != null)
+                Normals.AddRange(MemoryHelper.FromNativeArray(nativeValue.MNormals, vertexCount));
 
             //Tangents
-            if(nativeValue.Tangents != nint.Zero)
-                Tangents.AddRange(MemoryHelper.FromNativeArray<Vector3D>(nativeValue.Tangents, vertexCount));
+            if(nativeValue.MTangents != null)
+                Tangents.AddRange(MemoryHelper.FromNativeArray(nativeValue.MTangents, vertexCount));
 
             //BiTangents
-            if(nativeValue.BiTangents != nint.Zero)
-                BiTangents.AddRange(MemoryHelper.FromNativeArray<Vector3D>(nativeValue.BiTangents, vertexCount));
+            if(nativeValue.MBitangents != null)
+                BiTangents.AddRange(MemoryHelper.FromNativeArray(nativeValue.MBitangents, vertexCount));
 
             //Vertex Color channels
-            for(var i = 0; i < nativeValue.Colors.Length; i++)
+            for(var i = 0; i < 8; i++) //TODO: Maybe find a constant somewhere to use to replace
             {
-                var colorPtr = nativeValue.Colors[i];
+                var colorPtr = nativeValue.MColors[i];
 
-                if(colorPtr != nint.Zero)
-                    VertexColorChannels[i].AddRange(MemoryHelper.FromNativeArray<Color4D>(colorPtr, vertexCount));
+                if(colorPtr != null)
+                    VertexColorChannels[i].AddRange(MemoryHelper.FromNativeArray((Color4D*)colorPtr, vertexCount));
             }
 
             //Texture coordinate channels
-            for(var i = 0; i < nativeValue.TextureCoords.Length; i++)
+            for(var i = 0; i < 8; i++)
             {
-                var texCoordsPtr = nativeValue.TextureCoords[i];
+                var texCoordsPtr = nativeValue.MTextureCoords[i];
 
-                if(texCoordsPtr != nint.Zero)
-                    TextureCoordinateChannels[i].AddRange(MemoryHelper.FromNativeArray<Vector3D>(texCoordsPtr, vertexCount));
+                if(texCoordsPtr != null)
+                    TextureCoordinateChannels[i].AddRange(MemoryHelper.FromNativeArray(texCoordsPtr, vertexCount));
             }
 
             //UV components for each tex coordinate channel
-            for(var i = 0; i < nativeValue.NumUVComponents.Length; i++)
+            for(var i = 0; i < 8; i++)
             {
-                UVComponentCount[i] = (int) nativeValue.NumUVComponents[i];
+                UVComponentCount[i] = (int) nativeValue.MNumUVComponents[i];
             }
         }
 
         //Faces
-        if(nativeValue.NumFaces > 0 && nativeValue.Faces != nint.Zero)
-            Faces.AddRange(MemoryHelper.FromNativeArray<Face, AiFace>(nativeValue.Faces, (int) nativeValue.NumFaces));
+        if(nativeValue.MNumFaces > 0 && nativeValue.MFaces != null)
+            Faces.AddRange(MemoryHelper.FromNativeArray<Face, AiFace>((nint)nativeValue.MFaces, (int) nativeValue.MNumFaces));
 
         //Bones
-        if(nativeValue.NumBones > 0 && nativeValue.Bones != nint.Zero)
-            Bones.AddRange(MemoryHelper.FromNativeArray<Bone, AiBone>(nativeValue.Bones, (int) nativeValue.NumBones, true));
+        if(nativeValue.MNumBones > 0 && nativeValue.MBones != null)
+            Bones.AddRange(MemoryHelper.FromNativeArray<Bone, AiBone>((nint)nativeValue.MBones, (int) nativeValue.MNumBones, true));
 
         //Attachment meshes
-        if(nativeValue.NumAnimMeshes > 0 && nativeValue.AnimMeshes != nint.Zero)
-            MeshAnimationAttachments.AddRange(MemoryHelper.FromNativeArray<MeshAnimationAttachment, AiAnimMesh>(nativeValue.AnimMeshes, (int) nativeValue.NumAnimMeshes, true));
+        if(nativeValue.MNumAnimMeshes > 0 && nativeValue.MAnimMeshes != null)
+            MeshAnimationAttachments.AddRange(MemoryHelper.FromNativeArray<MeshAnimationAttachment, AiAnimMesh>((nint)nativeValue.MAnimMeshes, (int) nativeValue.MNumAnimMeshes, true));
     }
 
     /// <summary>
@@ -631,57 +636,57 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
     /// </summary>
     /// <param name="nativeValue">Native value to free</param>
     /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-    public static void FreeNative(nint nativeValue, bool freeNative)
+    public static unsafe void FreeNative(nint nativeValue, bool freeNative)
     {
-        if(nativeValue == nint.Zero)
+        if(nativeValue == null)
             return;
 
         var aiMesh = MemoryHelper.Read<AiMesh>(nativeValue);
 
-        if(aiMesh.NumVertices > 0)
+        if(aiMesh.MNumVertices > 0)
         {
-            if(aiMesh.Vertices != nint.Zero)
-                MemoryHelper.FreeMemory(aiMesh.Vertices);
+            if(aiMesh.MVertices != null)
+                MemoryHelper.FreeMemory(aiMesh.MVertices);
 
-            if(aiMesh.Normals != nint.Zero)
-                MemoryHelper.FreeMemory(aiMesh.Normals);
+            if(aiMesh.MNormals != null)
+                MemoryHelper.FreeMemory(aiMesh.MNormals);
 
-            if(aiMesh.Tangents != nint.Zero)
-                MemoryHelper.FreeMemory(aiMesh.Tangents);
+            if(aiMesh.MTangents != null)
+                MemoryHelper.FreeMemory(aiMesh.MTangents);
 
-            if(aiMesh.BiTangents != nint.Zero)
-                MemoryHelper.FreeMemory(aiMesh.BiTangents);
+            if(aiMesh.MBitangents != null)
+                MemoryHelper.FreeMemory(aiMesh.MBitangents);
 
             //Vertex Color channels
-            for(var i = 0; i < aiMesh.Colors.Length; i++)
+            for(var i = 0; i < 8; i++)
             {
-                var colorPtr = aiMesh.Colors[i];
+                var colorPtr = aiMesh.MColors[i];
 
-                if(colorPtr != nint.Zero)
+                if(colorPtr != null)
                     MemoryHelper.FreeMemory(colorPtr);
             }
 
             //Texture coordinate channels
-            for(var i = 0; i < aiMesh.TextureCoords.Length; i++)
+            for(var i = 0; i < 8; i++)
             {
-                var texCoordsPtr = aiMesh.TextureCoords[i];
+                var texCoordsPtr = aiMesh.MTextureCoords[i];
 
-                if(texCoordsPtr != nint.Zero)
+                if(texCoordsPtr != null)
                     MemoryHelper.FreeMemory(texCoordsPtr);
             }
         }
 
         //Faces
-        if(aiMesh.NumFaces > 0 && aiMesh.Faces != nint.Zero)
-            MemoryHelper.FreeNativeArray<AiFace>(aiMesh.Faces, (int) aiMesh.NumFaces, Face.FreeNative);
+        if(aiMesh.MNumFaces > 0 && aiMesh.MFaces != null)
+            MemoryHelper.FreeNativeArray<AiFace>(aiMesh.MFaces, (int) aiMesh.MNumFaces, Face.FreeNative);
 
         //Bones
-        if(aiMesh.NumBones > 0 && aiMesh.Bones != nint.Zero)
-            MemoryHelper.FreeNativeArray<AiBone>(aiMesh.Bones, (int) aiMesh.NumBones, Bone.FreeNative, true);
+        if(aiMesh.MNumBones > 0 && aiMesh.MBones != null)
+            MemoryHelper.FreeNativeArray<AiBone>(aiMesh.MBones, (int) aiMesh.MNumBones, Bone.FreeNative, true);
 
         //Attachment meshes
-        if(aiMesh.NumAnimMeshes > 0 && aiMesh.AnimMeshes != nint.Zero)
-            MemoryHelper.FreeNativeArray<AiAnimMesh>(aiMesh.AnimMeshes, (int) aiMesh.NumAnimMeshes, MeshAnimationAttachment.FreeNative, true);
+        if(aiMesh.MNumAnimMeshes > 0 && aiMesh.MAnimMeshes != null)
+            MemoryHelper.FreeNativeArray<AiAnimMesh>(aiMesh.MAnimMeshes, (int) aiMesh.MNumAnimMeshes, MeshAnimationAttachment.FreeNative, true);
 
         if(freeNative)
             MemoryHelper.FreeMemory(nativeValue);

@@ -68,7 +68,7 @@ public sealed class Bone : IMarshalable<Bone, AiBone>
     {
         Name = null;
         OffsetMatrix = Matrix3x3.Identity;
-        VertexWeights = new();
+        VertexWeights = [];
     }
 
     /// <summary>
@@ -81,7 +81,7 @@ public sealed class Bone : IMarshalable<Bone, AiBone>
     {
         Name = name;
         OffsetMatrix = offsetMatrix;
-        VertexWeights = new();
+        VertexWeights = [];
 
         if(weights != null)
             VertexWeights.AddRange(weights);

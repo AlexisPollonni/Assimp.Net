@@ -1343,7 +1343,7 @@ public sealed class Material : IMarshalable<Material, AiMaterial>
         var count = GetMaterialTextureCount(type);
 
         if(count == 0)
-            return Array.Empty<TextureSlot>();
+            return [];
 
         var textures = new TextureSlot[count];
 

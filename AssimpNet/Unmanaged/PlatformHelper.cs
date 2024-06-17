@@ -101,7 +101,7 @@ internal class PlatformHelper
     public static Type[] GetNestedTypes(Type type)
     {
         if(type == null)
-            return new Type[0];
+            return [];
 
         return type.GetNestedTypes();
     }
@@ -109,7 +109,7 @@ internal class PlatformHelper
     public static object[] GetCustomAttributes(Type type, Type attributeType, bool inherit)
     {
         if(type == null || attributeType == null)
-            return Array.Empty<object>();
+            return [];
 
         return type.GetCustomAttributes(attributeType, inherit);
     }

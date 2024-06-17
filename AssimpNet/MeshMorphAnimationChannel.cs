@@ -58,7 +58,7 @@ public sealed class MeshMorphAnimationChannel : IMarshalable<MeshMorphAnimationC
     public MeshMorphAnimationChannel()
     {
         Name = string.Empty;
-        MeshMorphKeys = new();
+        MeshMorphKeys = [];
     }
 
     #region IMarshalable Implementation

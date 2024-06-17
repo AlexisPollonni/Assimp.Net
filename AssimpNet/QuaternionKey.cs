@@ -144,6 +144,6 @@ public struct QuaternionKey : IEquatable<QuaternionKey>
     {
         var info = CultureInfo.CurrentCulture;
         return string.Format(info, "{{Time:{0} Rotation:{1}}}",
-            new object[] { Time.ToString(info), Value.ToString() });
+            [Time.ToString(info), Value.ToString()]);
     }
 }

@@ -84,6 +84,6 @@ public sealed class ImporterDescription
         MaxVersion = new((int) descr.MaxMajor, (int) descr.MaxMajor);
 
         var fileExts = Marshal.PtrToStringAnsi(descr.FileExtensions);
-        FileExtensions = string.IsNullOrEmpty(fileExts) ? Array.Empty<string>() : fileExts.Split(' ');
+        FileExtensions = string.IsNullOrEmpty(fileExts) ? [] : fileExts.Split(' ');
     }
 }

@@ -147,24 +147,24 @@ public sealed class MeshAnimationAttachment : IMarshalable<MeshAnimationAttachme
     /// </summary>
     public MeshAnimationAttachment()
     {
-        Vertices = new();
-        Normals = new();
-        Tangents = new();
-        BiTangents = new();
+        Vertices = [];
+        Normals = [];
+        Tangents = [];
+        BiTangents = [];
         Weight = 0.0f;
 
         VertexColorChannels = new List<Color4D>[AiDefines.AI_MAX_NUMBER_OF_COLOR_SETS];
 
         for(var i = 0; i < VertexColorChannels.Length; i++)
         {
-            VertexColorChannels[i] = new();
+            VertexColorChannels[i] = [];
         }
 
         TextureCoordinateChannels = new List<Vector3D>[AiDefines.AI_MAX_NUMBER_OF_TEXTURECOORDS];
 
         for(var i = 0; i < TextureCoordinateChannels.Length; i++)
         {
-            TextureCoordinateChannels[i] = new();
+            TextureCoordinateChannels[i] = [];
         }
     }
 
@@ -220,7 +220,7 @@ public sealed class MeshAnimationAttachment : IMarshalable<MeshAnimationAttachme
             var colors = VertexColorChannels[i];
 
             if(colors == null)
-                VertexColorChannels[i] = new();
+                VertexColorChannels[i] = [];
             else
                 colors.Clear();
         }
@@ -230,7 +230,7 @@ public sealed class MeshAnimationAttachment : IMarshalable<MeshAnimationAttachme
             var texCoords = TextureCoordinateChannels[i];
 
             if(texCoords == null)
-                TextureCoordinateChannels[i] = new();
+                TextureCoordinateChannels[i] = [];
             else
                 texCoords.Clear();
         }
