@@ -250,12 +250,15 @@ public sealed class EmbeddedTexture : IMarshalable<EmbeddedTexture, AiTexture>
     {
         if (hint is null)
         {
-            texture.AchFormatHint = null;
+            for (var i = 0; i < 9; i++) 
+                texture.AchFormatHint[i] = 0;
             return;
         }
+
+        var mem = SilkMarshal.StringToMemory(hint);
         
-        var ptr = (byte*)SilkMarshal.StringToPtr(hint);
-        texture.AchFormatHint = ptr;
+        for (var i = 0; i < 9 && i < mem.Length; i++) 
+            texture.AchFormatHint[i] = mem[i];
     }
 
     private static unsafe string GetFormatHint(AiTexture texture)

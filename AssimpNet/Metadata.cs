@@ -23,7 +23,6 @@
 using System.Globalization;
 using System.Numerics;
 using Silk.NET.Assimp;
-using Silk.NET.Maths;
 
 namespace Assimp;
 
@@ -277,7 +276,7 @@ public sealed class Metadata : Dictionary<string, Metadata.Entry>, IMarshalable<
                 MetadataType.Int32 => typeof(int),
                 MetadataType.Aistring => typeof(string),
                 MetadataType.Uint64 => typeof(ulong),
-                MetadataType.Aivector3D => typeof(Vector3D),
+                MetadataType.Aivector3D => typeof(Vector3),
                 _ => null
             };
 

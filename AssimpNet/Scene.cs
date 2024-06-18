@@ -234,12 +234,9 @@ public sealed class Scene : IMarshalable<Scene, AiScene>
     /// </summary>
     /// <param name="scene">Scene data</param>
     /// <returns>Unmanaged scene or NULL if the scene is null.</returns>
-    public static unsafe nint ToUnmanagedScene(Scene scene)
+    public static unsafe AiScene* ToUnmanagedScene(Scene scene)
     {
-        if(scene == null)
-            return nint.Zero;
-
-        return (nint)MemoryHelper.ToNativePointer<Scene, AiScene>(scene);
+        return scene == null ? null : MemoryHelper.ToNativePointer<Scene, AiScene>(scene);
     }
 
     /// <summary>
@@ -247,12 +244,9 @@ public sealed class Scene : IMarshalable<Scene, AiScene>
     /// </summary>
     /// <param name="scenePtr">The unmanaged scene data</param>
     /// <returns>The managed scene, or null if the pointer is NULL</returns>
-    public static Scene FromUnmanagedScene(nint scenePtr)
+    public static unsafe Scene FromUnmanagedScene(AiScene* scenePtr)
     {
-        if(scenePtr == nint.Zero)
-            return null;
-
-        return MemoryHelper.FromNativePointer<Scene, AiScene>(scenePtr);
+        return scenePtr == null ? null : MemoryHelper.FromNativePointer<Scene, AiScene>((nint)scenePtr);
     }
 
     /// <summary>
@@ -260,9 +254,9 @@ public sealed class Scene : IMarshalable<Scene, AiScene>
     /// call the appropiate <see cref="AssimpLibrary.ReleaseImport"/> function.
     /// </summary>
     /// <param name="scenePtr">Pointer to unmanaged scene data.</param>
-    public static void FreeUnmanagedScene(nint scenePtr)
+    public static unsafe void FreeUnmanagedScene(AiScene* scenePtr)
     {
-        if(scenePtr == nint.Zero)
+        if(scenePtr == null)
             return;
 
         FreeNative(scenePtr, true);
@@ -392,12 +386,12 @@ public sealed class Scene : IMarshalable<Scene, AiScene>
     /// </summary>
     /// <param name="nativeValue">Native value to free</param>
     /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-    public static unsafe void FreeNative(nint nativeValue, bool freeNative)
+    public static unsafe void FreeNative(AiScene* nativeValue, bool freeNative)
     {
-        if(nativeValue == nint.Zero)
+        if(nativeValue == null)
             return;
 
-        var aiScene = MemoryHelper.Read<AiScene>(nativeValue);
+        var aiScene = MemoryHelper.Read<AiScene>((nint)nativeValue);
 
         if(aiScene.MNumMaterials > 0 && aiScene.MMaterials != null)
             MemoryHelper.FreeNativeArray(aiScene.MMaterials, (int) aiScene.MNumMaterials, Material.FreeNative);

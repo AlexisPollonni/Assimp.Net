@@ -47,7 +47,7 @@ public sealed class AssimpContext : IDisposable
     private bool m_buildMatrix;
     private Matrix4x4 m_scaleRot = Matrix4x4.Identity;
 
-    private nint m_propStore = nint.Zero;
+    private unsafe PropertyStore* m_propStore = null;
 
     /// <summary>
     /// Gets if the context has been disposed.
@@ -173,21 +173,21 @@ public sealed class AssimpContext : IDisposable
     /// <returns>The imported scene</returns>
     /// <exception cref="AssimpException">Thrown if the stream is not valid (null or write-only).</exception>
     /// <exception cref="System.ObjectDisposedException">Thrown if the context has already been disposed of.</exception>
-    public Scene ImportFileFromStream(Stream stream, PostProcessSteps postProcessFlags, string formatHint = null)
+    public unsafe Scene ImportFileFromStream(Stream stream, PostProcessSteps postProcessFlags, string formatHint = null)
     {
         CheckDisposed();
 
         if(stream == null || stream.CanRead != true)
             throw new AssimpException("stream", "Can't read from the stream it's null or write-only");
 
-        var ptr = nint.Zero;
+        AiScene* ptr = null;
         PrepareImport();
 
         try
         {
             ptr = AssimpLibrary.Instance.ImportFileFromStream(stream, PostProcessSteps.None, formatHint, m_propStore);
 
-            if(ptr == nint.Zero)
+            if(ptr == null)
                 throw new AssimpException("Error importing file: " + AssimpLibrary.Instance.GetErrorString());
 
             TransformScene(ptr);
@@ -201,7 +201,7 @@ public sealed class AssimpContext : IDisposable
         {
             CleanupImport();
 
-            if(ptr != nint.Zero)
+            if(ptr != null)
             {
                 AssimpLibrary.Instance.ReleaseImport(ptr);
             }
@@ -236,12 +236,12 @@ public sealed class AssimpContext : IDisposable
     /// <exception cref="AssimpException">Thrown if there was a general error in importing the model.</exception>
     /// <exception cref="System.IO.FileNotFoundException">Thrown if the file could not be located.</exception>
     /// <exception cref="System.ObjectDisposedException">Thrown if the context has already been disposed of.</exception>
-    public Scene ImportFile(string file, PostProcessSteps postProcessFlags)
+    public unsafe Scene ImportFile(string file, PostProcessSteps postProcessFlags)
     {
         CheckDisposed();
 
-        var ptr = nint.Zero;
-        var fileIO = nint.Zero;
+        AiScene* ptr = null;
+        AiFileIO* fileIO = null;
 
         //Only do file checks if not using a custom IOSystem
         if(UsingCustomIOSystem)
@@ -259,7 +259,7 @@ public sealed class AssimpContext : IDisposable
         {
             ptr = AssimpLibrary.Instance.ImportFile(file, PostProcessSteps.None, fileIO, m_propStore);
 
-            if(ptr == nint.Zero)
+            if(ptr == null)
                 throw new AssimpException("Error importing file: " + AssimpLibrary.Instance.GetErrorString());
 
             TransformScene(ptr);
@@ -273,7 +273,7 @@ public sealed class AssimpContext : IDisposable
         {
             CleanupImport();
 
-            if(ptr != nint.Zero)
+            if(ptr != null)
             {
                 AssimpLibrary.Instance.ReleaseImport(ptr);
             }
@@ -312,12 +312,12 @@ public sealed class AssimpContext : IDisposable
     /// <returns>True if the scene was exported successfully, false otherwise.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the scene is null.</exception>
     /// <exception cref="System.ObjectDisposedException">Thrown if the context has already been disposed of.</exception>
-    public bool ExportFile(Scene scene, string fileName, string exportFormatId, PostProcessSteps preProcessing)
+    public unsafe bool ExportFile(Scene scene, string fileName, string exportFormatId, PostProcessSteps preProcessing)
     {
         CheckDisposed();
 
-        var fileIO = nint.Zero;
-        var scenePtr = nint.Zero;
+        AiFileIO* fileIO = null;
+        AiScene* scenePtr = null;
 
         if(scene == null)
             throw new ArgumentNullException(nameof(scene), "Scene must exist.");
@@ -331,11 +331,11 @@ public sealed class AssimpContext : IDisposable
 
             var status = AssimpLibrary.Instance.ExportScene(scenePtr, exportFormatId, fileName, fileIO, preProcessing);
 
-            return status == ReturnCode.Success;
+            return status == Return.Success;
         }
         finally
         {
-            if(scenePtr != nint.Zero)
+            if(scenePtr != null)
                 Scene.FreeUnmanagedScene(scenePtr);
         }
     }
@@ -349,29 +349,16 @@ public sealed class AssimpContext : IDisposable
     /// </summary>
     /// <param name="scene">Scene containing the model to export.</param>
     /// <param name="exportFormatId">FormatID representing the format to export to.</param>
-    /// <returns>The resulting data blob, or null if the export failed.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if the scene is null.</exception>
-    /// <exception cref="System.ObjectDisposedException">Thrown if the context has already been disposed of.</exception>
-    public ExportDataBlob ExportToBlob(Scene scene, string exportFormatId)
-    {
-        return ExportToBlob(scene, exportFormatId, PostProcessSteps.None);
-    }
-
-    /// <summary>
-    /// Exports a scene to the specified format and writes it to a data blob.
-    /// </summary>
-    /// <param name="scene">Scene containing the model to export.</param>
-    /// <param name="exportFormatId">FormatID representing the format to export to.</param>
     /// <param name="preProcessing">Preprocessing flags to apply to the model before it is exported.</param>
     /// <returns>The resulting data blob, or null if the export failed.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the scene is null.</exception>
     /// <exception cref="System.ObjectDisposedException">Thrown if the context has already been disposed of.</exception>
-    public ExportDataBlob ExportToBlob(Scene scene, string exportFormatId, PostProcessSteps preProcessing)
+    public unsafe ExportDataBlob ExportToBlob(Scene scene, string exportFormatId, PostProcessSteps preProcessing = PostProcessSteps.None)
     {
         CheckDisposed();
 
-        var fileIO = nint.Zero;
-        var scenePtr = nint.Zero;
+        AiFileIO* fileIO = null;
+        AiScene* scenePtr = null;
 
         if(scene == null)
             throw new ArgumentNullException(nameof(scene), "Scene must exist.");
@@ -387,7 +374,7 @@ public sealed class AssimpContext : IDisposable
         }
         finally
         {
-            if(scenePtr != nint.Zero)
+            if(scenePtr != null)
                 Scene.FreeUnmanagedScene(scenePtr);
         }
     }
@@ -443,15 +430,15 @@ public sealed class AssimpContext : IDisposable
     /// <exception cref="AssimpException">Thrown if there was a general error in importing the model.</exception>
     /// <exception cref="System.IO.FileNotFoundException">Thrown if the file could not be located.</exception>
     /// <exception cref="System.ObjectDisposedException">Thrown if the context has already been disposed of.</exception>
-    public bool ConvertFromFileToFile(string inputFilename, PostProcessSteps importProcessSteps, string outputFilename, string exportFormatId, PostProcessSteps exportProcessSteps)
+    public unsafe bool ConvertFromFileToFile(string inputFilename, PostProcessSteps importProcessSteps, string outputFilename, string exportFormatId, PostProcessSteps exportProcessSteps)
     {
         CheckDisposed();
 
         if (!TestIfExportIdIsValid(exportFormatId))
             throw new InvalidDataException($"Export format id is not valid: {exportFormatId}");
 
-        var importedScenePtr = nint.Zero;
-        var customFileIoPtr = nint.Zero;
+        AiScene* importedScenePtr = null;
+        AiFileIO* customFileIoPtr = null;
 
         //Only do file checks if not using a custom IOSystem
         if(UsingCustomIOSystem)
@@ -469,7 +456,7 @@ public sealed class AssimpContext : IDisposable
         {
             importedScenePtr = AssimpLibrary.Instance.ImportFile(inputFilename, PostProcessSteps.None, customFileIoPtr, m_propStore);
 
-            if(importedScenePtr == nint.Zero)
+            if(importedScenePtr == null)
                 throw new AssimpException("Error importing file: " + AssimpLibrary.Instance.GetErrorString());
 
             TransformScene(importedScenePtr);
@@ -479,13 +466,13 @@ public sealed class AssimpContext : IDisposable
 
             var status = AssimpLibrary.Instance.ExportScene(importedScenePtr, exportFormatId, outputFilename, exportProcessSteps);
 
-            return status == ReturnCode.Success;
+            return status == Return.Success;
         }
         finally
         {
             CleanupImport();
 
-            if(importedScenePtr != nint.Zero)
+            if(importedScenePtr != null)
                 AssimpLibrary.Instance.ReleaseImport(importedScenePtr);
         }
     }
@@ -534,15 +521,15 @@ public sealed class AssimpContext : IDisposable
     /// <exception cref="AssimpException">Thrown if there was a general error in importing the model.</exception>
     /// <exception cref="System.IO.FileNotFoundException">Thrown if the file could not be located.</exception>
     /// <exception cref="System.ObjectDisposedException">Thrown if the context has already been disposed of.</exception>
-    public ExportDataBlob ConvertFromFileToBlob(string inputFilename, PostProcessSteps importProcessSteps, string exportFormatId, PostProcessSteps exportProcessSteps)
+    public unsafe ExportDataBlob ConvertFromFileToBlob(string inputFilename, PostProcessSteps importProcessSteps, string exportFormatId, PostProcessSteps exportProcessSteps)
     {
         CheckDisposed();
 
         if (!TestIfExportIdIsValid(exportFormatId))
             return null;
 
-        var ptr = nint.Zero;
-        var fileIO = nint.Zero;
+        AiScene* ptr = null;
+        AiFileIO* fileIO = null;
 
         //Only do file checks if not using a custom IOSystem
         if(UsingCustomIOSystem)
@@ -560,7 +547,7 @@ public sealed class AssimpContext : IDisposable
         {
             ptr = AssimpLibrary.Instance.ImportFile(inputFilename, PostProcessSteps.None, fileIO, m_propStore);
 
-            if(ptr == nint.Zero)
+            if(ptr == null)
                 throw new AssimpException("Error importing file: " + AssimpLibrary.Instance.GetErrorString());
 
             TransformScene(ptr);
@@ -574,7 +561,7 @@ public sealed class AssimpContext : IDisposable
         {
             CleanupImport();
 
-            if(ptr != nint.Zero)
+            if(ptr != null)
                 AssimpLibrary.Instance.ReleaseImport(ptr);
         }
     }
@@ -639,7 +626,7 @@ public sealed class AssimpContext : IDisposable
     /// <returns>True if the conversion was successful or not, false otherwise.</returns>
     /// <exception cref="AssimpException">Thrown if the stream is not valid (null or write-only).</exception>
     /// <exception cref="System.ObjectDisposedException">Thrown if the context has already been disposed of.</exception>
-    public bool ConvertFromStreamToFile(Stream inputStream, string importFormatHint, PostProcessSteps importProcessSteps, string outputFilename, string exportFormatId, PostProcessSteps exportProcessSteps)
+    public unsafe bool ConvertFromStreamToFile(Stream inputStream, string importFormatHint, PostProcessSteps importProcessSteps, string outputFilename, string exportFormatId, PostProcessSteps exportProcessSteps)
     {
         CheckDisposed();
 
@@ -649,14 +636,14 @@ public sealed class AssimpContext : IDisposable
         if (!TestIfExportIdIsValid(exportFormatId))
             return false;
 
-        var ptr = nint.Zero;
+        AiScene* ptr = null;
         PrepareImport();
 
         try
         {
             ptr = AssimpLibrary.Instance.ImportFileFromStream(inputStream, importProcessSteps, importFormatHint, m_propStore);
 
-            if(ptr == nint.Zero)
+            if(ptr == null)
                 throw new AssimpException("Error importing file: " + AssimpLibrary.Instance.GetErrorString());
 
             TransformScene(ptr);
@@ -666,13 +653,13 @@ public sealed class AssimpContext : IDisposable
 
             var status = AssimpLibrary.Instance.ExportScene(ptr, exportFormatId, outputFilename, exportProcessSteps);
 
-            return status == ReturnCode.Success;
+            return status == Return.Success;
         }
         finally
         {
             CleanupImport();
 
-            if(ptr != nint.Zero)
+            if(ptr != null)
                 AssimpLibrary.Instance.ReleaseImport(ptr);
         }
     }
@@ -730,24 +717,24 @@ public sealed class AssimpContext : IDisposable
     /// <returns>Data blob containing the exported scene in a binary form</returns>
     /// <exception cref="AssimpException">Thrown if the stream is not valid (null or write-only).</exception>
     /// <exception cref="System.ObjectDisposedException">Thrown if the context has already been disposed of.</exception>
-    public ExportDataBlob ConvertFromStreamToBlob(Stream inputStream, string importFormatHint, PostProcessSteps importProcessSteps, string exportFormatId, PostProcessSteps exportProcessSteps)
+    public unsafe ExportDataBlob ConvertFromStreamToBlob(Stream inputStream, string importFormatHint, PostProcessSteps importProcessSteps, string exportFormatId, PostProcessSteps exportProcessSteps)
     {
         CheckDisposed();
 
-        if(inputStream == null || inputStream.CanRead != true)
+        if(inputStream is not { CanRead: true })
             throw new AssimpException("stream", "Can't read from the stream it's null or write-only");
 
         if (!TestIfExportIdIsValid(exportFormatId))
             return null;
 
-        var ptr = nint.Zero;
+        AiScene* ptr = null;
         PrepareImport();
 
         try
         {
             ptr = AssimpLibrary.Instance.ImportFileFromStream(inputStream, importProcessSteps, importFormatHint, m_propStore);
 
-            if(ptr == nint.Zero)
+            if(ptr == null)
                 throw new AssimpException("Error importing file: " + AssimpLibrary.Instance.GetErrorString());
 
             TransformScene(ptr);
@@ -761,7 +748,7 @@ public sealed class AssimpContext : IDisposable
         {
             CleanupImport();
 
-            if(ptr != nint.Zero)
+            if(ptr != null)
                 AssimpLibrary.Instance.ReleaseImport(ptr);
         }
     }
@@ -918,9 +905,7 @@ public sealed class AssimpContext : IDisposable
         if(string.IsNullOrEmpty(configName))
             return;
 
-        PropertyConfig oldConfig;
-        if(PropertyConfigurations.TryGetValue(configName, out oldConfig))
-            PropertyConfigurations.Remove(configName);
+        PropertyConfigurations.Remove(configName, out _);
     }
 
     /// <summary>
@@ -1006,10 +991,10 @@ public sealed class AssimpContext : IDisposable
 
         if(m_buildMatrix)
         {
-            var scale = Matrix4x4.FromScaling(new(m_scale, m_scale, m_scale));
-            var xRot = Matrix4x4.FromRotationX(m_xAxisRotation * (float) (Math.PI / 180.0d));
-            var yRot = Matrix4x4.FromRotationY(m_yAxisRotation * (float) (Math.PI / 180.0d));
-            var zRot = Matrix4x4.FromRotationZ(m_zAxisRotation * (float) (Math.PI / 180.0d));
+            var scale = Matrix4x4.CreateScale(m_scale); //TODO: verify this is correct w new api
+            var xRot = Matrix4x4.CreateRotationX(m_xAxisRotation * (float) (Math.PI / 180.0d));
+            var yRot = Matrix4x4.CreateRotationY(m_yAxisRotation * (float) (Math.PI / 180.0d));
+            var zRot = Matrix4x4.CreateRotationZ(m_zAxisRotation * (float) (Math.PI / 180.0d));
             m_scaleRot = scale * (xRot * yRot * zRot);
         }
 
@@ -1017,7 +1002,7 @@ public sealed class AssimpContext : IDisposable
     }
 
     //Transforms the root node of the scene and writes it back to the native structure
-    private bool TransformScene(nint scene)
+    private unsafe bool TransformScene(AiScene* scene)
     {
         BuildMatrix();
 
@@ -1025,14 +1010,13 @@ public sealed class AssimpContext : IDisposable
         {
             if(!m_scaleRot.IsIdentity)
             {
-                var aiScene = MemoryHelper.MarshalStructure<AiScene>(scene);
-                if(aiScene.RootNode == nint.Zero)
+                if(scene->MRootNode == null)
                     return false;
 
-                var matrixPtr = MemoryHelper.AddIntPtr(aiScene.RootNode, MemoryHelper.SizeOf<AiString>()); //Skip over Node Name
+                var matrixPtr = MemoryHelper.AddIntPtr((nint)scene->MRootNode, MemoryHelper.SizeOf<AssimpString>()); //Skip over Node Name
 
                 var matrix = MemoryHelper.Read<Matrix4x4>(matrixPtr); //Get the root transform
-                matrix = matrix * m_scaleRot; //Transform
+                matrix *= m_scaleRot; //Transform
 
                 //Write back to unmanaged mem
                 MemoryHelper.Write(matrixPtr, matrix);
@@ -1049,7 +1033,7 @@ public sealed class AssimpContext : IDisposable
     }
 
     //Creates all property stores and sets their values
-    private void CreateConfigs()
+    private unsafe void CreateConfigs()
     {
         m_propStore = AssimpLibrary.Instance.CreatePropertyStore();
 
@@ -1060,9 +1044,9 @@ public sealed class AssimpContext : IDisposable
     }
 
     //Destroys all property stores
-    private void ReleaseConfigs()
+    private unsafe void ReleaseConfigs()
     {
-        if(m_propStore != nint.Zero)
+        if(m_propStore != null)
             AssimpLibrary.Instance.ReleasePropertyStore(m_propStore);
     }
 
