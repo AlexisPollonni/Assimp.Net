@@ -37,3 +37,6 @@ global using AiTexture = Silk.NET.Assimp.Texture;
 global using AiCamera = Silk.NET.Assimp.Camera;
 global using AiAnimation = Silk.NET.Assimp.Animation;
 global using AiScene = Silk.NET.Assimp.Scene;
+global using AiMemoryInfo = Silk.NET.Assimp.MemoryInfo;
+
+global using Matrix3x3 = Silk.NET.Maths.Matrix3X3<float>;

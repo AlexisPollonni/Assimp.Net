@@ -21,7 +21,10 @@
  */
 
 using System.IO;
+using System.Numerics;
 using Assimp.Configs;
+using Silk.NET.Assimp;
+using File = System.IO.File;
 
 namespace Assimp;
 
@@ -967,7 +970,7 @@ public sealed class AssimpContext : IDisposable
                 if(UsingCustomIOSystem)
                     m_ioSystem.Dispose();
             }
-
+            
             IsDisposed = true;
         }
     }

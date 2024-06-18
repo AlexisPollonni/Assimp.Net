@@ -20,7 +20,12 @@
  * THE SOFTWARE.
  */
 
+using System.Numerics;
 using System.Text;
+using ExcludeComponent = Silk.NET.Assimp.ExcludeComponent;
+using PrimitiveType = Silk.NET.Assimp.PrimitiveType;
+using PropertyStore = Silk.NET.Assimp.PropertyStore;
+using UVTransformFlags = Silk.NET.Assimp.UVTransformFlags;
 
 namespace Assimp.Configs;
 
@@ -52,7 +57,7 @@ public abstract class PropertyConfig
     /// Applies the property value to the given Assimp property store.
     /// </summary>
     /// <param name="propStore">Assimp property store</param>
-    internal void ApplyValue(nint propStore)
+    internal unsafe void ApplyValue(PropertyStore* propStore)
     {
         OnApplyValue(propStore);
     }
@@ -61,7 +66,7 @@ public abstract class PropertyConfig
     /// Applies the property value to the given Assimp property store.
     /// </summary>
     /// <param name="propStore">Assimp property store</param>
-    protected abstract void OnApplyValue(nint propStore);
+    protected abstract unsafe void OnApplyValue(PropertyStore* propStore);
 }
 
 /// <summary>
@@ -112,9 +117,9 @@ public class IntegerPropertyConfig : PropertyConfig
     /// Applies the property value to the given Assimp property store.
     /// </summary>
     /// <param name="propStore">Assimp property store</param>
-    protected override void OnApplyValue(nint propStore)
+    protected override unsafe void OnApplyValue(PropertyStore* propStore)
     {
-        if(propStore != nint.Zero)
+        if(propStore != null)
         {
             AssimpLibrary.Instance.SetImportPropertyInteger(propStore, Name, Value);
         }
@@ -169,9 +174,9 @@ public class FloatPropertyConfig : PropertyConfig
     /// Applies the property value to the given Assimp property store.
     /// </summary>
     /// <param name="propStore">Assimp property store</param>
-    protected override void OnApplyValue(nint propStore)
+    protected override unsafe void OnApplyValue(PropertyStore* propStore)
     {
-        if(propStore != nint.Zero)
+        if(propStore != null)
         {
             AssimpLibrary.Instance.SetImportPropertyFloat(propStore, Name, Value);
         }
@@ -226,9 +231,9 @@ public class MatrixPropertyConfig : PropertyConfig
     /// Applies the property value to the given Assimp property store.
     /// </summary>
     /// <param name="propStore">Assimp property store</param>
-    protected override void OnApplyValue(nint propStore)
+    protected override unsafe void OnApplyValue(PropertyStore* propStore)
     {
-        if(propStore != nint.Zero)
+        if(propStore != null)
         {
             AssimpLibrary.Instance.SetImportPropertyMatrix(propStore, Name, Value);
         }
@@ -283,9 +288,9 @@ public class BooleanPropertyConfig : PropertyConfig
     /// Applies the property value to the given Assimp property store.
     /// </summary>
     /// <param name="propStore">Assimp property store</param>
-    protected override void OnApplyValue(nint propStore)
+    protected override unsafe void OnApplyValue(PropertyStore* propStore)
     {
-        if(propStore != nint.Zero)
+        if(propStore != null)
         {
             var aiBool = Value ? 1 : 0;
             AssimpLibrary.Instance.SetImportPropertyInteger(propStore, Name, aiBool);
@@ -341,9 +346,9 @@ public class StringPropertyConfig : PropertyConfig
     /// Applies the property value to the given Assimp property store.
     /// </summary>
     /// <param name="propStore">Assimp property store</param>
-    protected override void OnApplyValue(nint propStore)
+    protected override unsafe void OnApplyValue(PropertyStore* propStore)
     {
-        if(propStore != nint.Zero)
+        if(propStore != null)
         {
             AssimpLibrary.Instance.SetImportPropertyString(propStore, Name, Value);
         }
@@ -509,7 +514,7 @@ public sealed class MDLColorMapConfig : StringPropertyConfig
 }
 
 /// <summary>
-/// Configuration for the the <see cref="PostProcessSteps.RemoveRedundantMaterials"/> step
+/// Configuration for the the <see cref="Silk.NET.Assimp.PostProcessSteps.RemoveRedundantMaterials"/> step
 /// to determine what materials to keep. If a material matches one of these names it will not
 /// be modified or removed by the post processing step. Default is an empty string.
 /// </summary>
@@ -531,7 +536,7 @@ public sealed class MaterialExcludeListConfig : StringPropertyConfig
 }
 
 /// <summary>
-/// Configuration for the <see cref="PostProcessSteps.PreTransformVertices"/> step
+/// Configuration for the <see cref="Silk.NET.Assimp.PostProcessSteps.PreTransformVertices"/> step
 /// to keep the scene hierarchy. Meshes are moved to worldspace, but no optimization is performed
 /// where meshes with the same materials are not joined. This option can be useful
 /// if you have a scene hierarchy that contains important additional information
@@ -554,7 +559,7 @@ public sealed class KeepSceneHierarchyConfig : BooleanPropertyConfig
 }
 
 /// <summary>
-/// Configuration for the <see cref="PostProcessSteps.PreTransformVertices"/> step
+/// Configuration for the <see cref="Silk.NET.Assimp.PostProcessSteps.PreTransformVertices"/> step
 /// to normalize all vertex components into the -1...1 range. The default value is
 /// false.
 /// </summary>
@@ -575,7 +580,7 @@ public sealed class NormalizeVertexComponentsConfig : BooleanPropertyConfig
 }
 
 /// <summary>
-/// Configuration for the <see cref="PostProcessSteps.FindDegenerates"/> step to
+/// Configuration for the <see cref="Silk.NET.Assimp.PostProcessSteps.FindDegenerates"/> step to
 /// remove degenerted primitives from the import immediately. The default value is false,
 /// where degenerated triangles are converted to lines, and degenerated lines to points.
 /// </summary>
@@ -596,7 +601,7 @@ public sealed class RemoveDegeneratePrimitivesConfig : BooleanPropertyConfig
 }
 
 /// <summary>
-/// Configuration for the <see cref="PostProcessSteps.FindDegenerates"/> step. If true, the area of the triangles are checked
+/// Configuration for the <see cref="Silk.NET.Assimp.PostProcessSteps.FindDegenerates"/> step. If true, the area of the triangles are checked
 /// to see if they are greater than 1e-6. If so, the triangle is removed if <see cref="RemoveDegeneratePrimitivesConfig"/> is set to true.
 /// </summary>
 public sealed class RemoveDegeneratePrimitivesCheckAreaConfig : BooleanPropertyConfig
@@ -615,7 +620,7 @@ public sealed class RemoveDegeneratePrimitivesCheckAreaConfig : BooleanPropertyC
 }
 
 /// <summary>
-/// Configuration for the <see cref="PostProcessSteps.OptimizeGraph"/> step
+/// Configuration for the <see cref="Silk.NET.Assimp.PostProcessSteps.OptimizeGraph"/> step
 /// to preserve nodes matching a name in the given list. Nodes that match the names in the list
 /// will not be modified or removed. Identifiers containing whitespaces
 /// <c>must</c> be enclosed in single quotation marks. The default value is an
@@ -638,7 +643,7 @@ public sealed class NodeExcludeListConfig : StringPropertyConfig
 }
 
 /// <summary>
-/// Configuration for the <see cref="PostProcessSteps.SplitLargeMeshes"/> step 
+/// Configuration for the <see cref="Silk.NET.Assimp.PostProcessSteps.SplitLargeMeshes"/> step 
 /// that specifies the maximum number of triangles a mesh can contain. The
 /// default value is MeshTriangleLimitConfigDefaultValue.
 /// </summary>
@@ -665,7 +670,7 @@ public sealed class MeshTriangleLimitConfig : IntegerPropertyConfig
 }
 
 /// <summary>
-/// Configuration for the <see cref="PostProcessSteps.SplitLargeMeshes"/> step
+/// Configuration for the <see cref="Silk.NET.Assimp.PostProcessSteps.SplitLargeMeshes"/> step
 /// that specifies the maximum number of vertices a mesh can contain. The
 /// default value is MeshVertexLimitConfigDefaultValue.
 /// </summary>
@@ -692,7 +697,7 @@ public sealed class MeshVertexLimitConfig : IntegerPropertyConfig
 }
 
 /// <summary>
-/// Configuration for the <see cref="PostProcessSteps.LimitBoneWeights"/> step
+/// Configuration for the <see cref="Silk.NET.Assimp.PostProcessSteps.LimitBoneWeights"/> step
 /// that specifies the maximum number of bone weights per vertex. The default
 /// value is VertexBoneWeightLimitConfigDefaultValue.
 /// </summary>
@@ -719,7 +724,7 @@ public sealed class VertexBoneWeightLimitConfig : IntegerPropertyConfig
 }
 
 /// <summary>
-/// Configuration for the <see cref="PostProcessSteps.ImproveCacheLocality"/> step
+/// Configuration for the <see cref="Silk.NET.Assimp.PostProcessSteps.ImproveCacheLocality"/> step
 /// that specifies the size of the post-transform vertex cache. The size is
 /// given in number of vertices and the default value is VertexCacheSizeConfigDefaultValue.
 /// </summary>
@@ -746,9 +751,9 @@ public sealed class VertexCacheSizeConfig : IntegerPropertyConfig
 }
 
 /// <summary>
-/// Configuration for the <see cref="PostProcessSteps.RemoveComponent"/> step that
+/// Configuration for the <see cref="Silk.NET.Assimp.PostProcessSteps.RemoveComponent"/> step that
 /// specifies which parts of the data structure is to be removed. If no valid mesh
-/// remains after the step, the import fails. The default value i <see cref="ExcludeComponent.None"/>.
+/// remains after the step, the import fails. The default value i <see cref="Silk.NET.Assimp.ExcludeComponent.None"/>.
 /// </summary>
 public sealed class RemoveComponentConfig : IntegerPropertyConfig
 {
@@ -767,7 +772,7 @@ public sealed class RemoveComponentConfig : IntegerPropertyConfig
 }
 
 /// <summary>
-/// Configuration for the <see cref="PostProcessSteps.SortByPrimitiveType"/> step that
+/// Configuration for the <see cref="Silk.NET.Assimp.PostProcessSteps.SortByPrimitiveType"/> step that
 /// specifies which primitive types are to be removed by the step. Specifying all
 /// primitive types is illegal. The default value is zero specifying none.
 /// </summary>
@@ -788,7 +793,7 @@ public sealed class SortByPrimitiveTypeConfig : IntegerPropertyConfig
 }
 
 /// <summary>
-/// Configuration for the <see cref="PostProcessSteps.FindInvalidData"/> step that
+/// Configuration for the <see cref="Silk.NET.Assimp.PostProcessSteps.FindInvalidData"/> step that
 /// specifies the floating point accuracy for animation values, specifically
 /// the episilon during comparisons. The default value is 0.0f.
 /// </summary>
@@ -809,7 +814,7 @@ public sealed class AnimationAccuracyConfig : FloatPropertyConfig
 }
 
 /// <summary>
-/// Configuration for the <see cref="PostProcessSteps.FindInvalidData"/> step. Set to true to
+/// Configuration for the <see cref="Silk.NET.Assimp.PostProcessSteps.FindInvalidData"/> step. Set to true to
 /// ignore texture coordinates. This may be useful if you have to assign different kinds of textures,
 /// like seasonally variable ones - one for summer and one for winter. Default is false.
 /// </summary>
@@ -829,7 +834,7 @@ public sealed class IgnoreTextureCoordinatesConfig : BooleanPropertyConfig
 }
 
 /// <summary>
-/// Configuration for the <see cref="PostProcessSteps.TransformUVCoords"/> step that
+/// Configuration for the <see cref="Silk.NET.Assimp.PostProcessSteps.TransformUVCoords"/> step that
 /// specifies which UV transformations are to be evaluated. The default value
 /// is for all combinations (scaling, rotation, translation).
 /// </summary>
@@ -871,7 +876,7 @@ public sealed class FavorSpeedConfig : BooleanPropertyConfig
 }
 
 /// <summary>
-/// Configures the maximum bone count per mesh for the <see cref="PostProcessSteps.SplitByBoneCount"/> step. Meshes are
+/// Configures the maximum bone count per mesh for the <see cref="Silk.NET.Assimp.PostProcessSteps.SplitByBoneCount"/> step. Meshes are
 /// split until the maximum number of bones is reached.
 /// </summary>
 public sealed class MaxBoneCountConfig : IntegerPropertyConfig
@@ -910,7 +915,7 @@ public sealed class TangentTextureChannelIndexConfig : IntegerPropertyConfig
 }
 
 /// <summary>
-/// Configures the <see cref="PostProcessSteps.Debone"/> threshold that is used to determine what bones are removed.
+/// Configures the <see cref="Silk.NET.Assimp.PostProcessSteps.Debone"/> threshold that is used to determine what bones are removed.
 /// </summary>
 public sealed class DeboneThresholdConfig : FloatPropertyConfig
 {
@@ -949,7 +954,7 @@ public sealed class DeboneAllOrNoneConfig : BooleanPropertyConfig
 }
 
 /// <summary>
-/// Configuration for <see cref="PostProcessSteps.PreTransformVertices"/> that sets a user defined matrix as the scene root node transformation before
+/// Configuration for <see cref="Silk.NET.Assimp.PostProcessSteps.PreTransformVertices"/> that sets a user defined matrix as the scene root node transformation before
 /// transforming vertices. Default value is the identity matrix.
 /// </summary>
 public sealed class RootTransformationConfig : MatrixPropertyConfig
@@ -970,9 +975,9 @@ public sealed class RootTransformationConfig : MatrixPropertyConfig
     /// Applies the property value to the given Assimp property store.
     /// </summary>
     /// <param name="propStore">Assimp property store</param>
-    protected override void OnApplyValue(nint propStore)
+    protected override unsafe void OnApplyValue(PropertyStore* propStore)
     {
-        if(propStore != nint.Zero)
+        if(propStore != null)
         {
             //Technically this is TWO configs, a boolean that we want to do it and a config with the actual matrix. Most likely if we're setting the actual matrix, then we really do want
             //to apply the root transformation, so this config actually represents two configs.
@@ -983,7 +988,7 @@ public sealed class RootTransformationConfig : MatrixPropertyConfig
 }
 
 /// <summary>
-/// Configures the <see cref="PostProcessSteps.GlobalScale"/> step to scale the entire scene by a certain amount. Some importers provide a mechanism to define a scaling unit for the model,
+/// Configures the <see cref="Silk.NET.Assimp.PostProcessSteps.GlobalScale"/> step to scale the entire scene by a certain amount. Some importers provide a mechanism to define a scaling unit for the model,
 /// which this processing step can utilize. Default is 1.0.
 /// </summary>
 /// <seealso cref="Assimp.Configs.FloatPropertyConfig" />
@@ -1474,7 +1479,7 @@ public sealed class OgreMaterialFileConfig : StringPropertyConfig
 /// </list>
 /// The matching is case insensitive. Postfix is taken between the last "_" and last ".". The default behavior is to detect type from lower cased
 /// texture unit name by matching against: normalmap, specularmap, lightmap, and displacementmap. For both cases if no match is found then,
-/// <see cref="TextureType.Diffuse"/> is used. The default value is false.
+/// <see cref="Silk.NET.Assimp.TextureType.Diffuse"/> is used. The default value is false.
 /// </summary>
 public sealed class OgreTextureTypeFromFilenameConfig : BooleanPropertyConfig
 {

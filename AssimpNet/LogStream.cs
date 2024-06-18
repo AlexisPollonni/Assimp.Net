@@ -181,14 +181,14 @@ public class LogStream : IDisposable
     if (Interlocked.Increment(ref s_instanceCounter) != 1)
       return;
 
-    AssimpLibrary.Instance.AttachLogStream((nint)s_logstreamPtr);
+    AssimpLibrary.Instance.AttachLogStream(s_logstreamPtr);
   }
 
   private static unsafe void StaticDetach() {
     if (Interlocked.Decrement(ref s_instanceCounter) != 0)
       return;
       
-    AssimpLibrary.Instance.DetachLogStream((nint)s_logstreamPtr);
+    AssimpLibrary.Instance.DetachLogStream(s_logstreamPtr);
   }
     
 
