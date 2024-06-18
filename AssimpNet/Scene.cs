@@ -1,29 +1,27 @@
 ﻿/*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using System;
-using System.Collections.Generic;
 using System.IO;
-using Assimp.Unmanaged;
+using Silk.NET.Assimp;
 
 namespace Assimp;
 
@@ -236,12 +234,12 @@ public sealed class Scene : IMarshalable<Scene, AiScene>
     /// </summary>
     /// <param name="scene">Scene data</param>
     /// <returns>Unmanaged scene or NULL if the scene is null.</returns>
-    public static nint ToUnmanagedScene(Scene scene)
+    public static unsafe nint ToUnmanagedScene(Scene scene)
     {
         if(scene == null)
             return nint.Zero;
 
-        return MemoryHelper.ToNativePointer<Scene, AiScene>(scene);
+        return (nint)MemoryHelper.ToNativePointer<Scene, AiScene>(scene);
     }
 
     /// <summary>
@@ -282,105 +280,105 @@ public sealed class Scene : IMarshalable<Scene, AiScene>
     /// </summary>
     /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
     /// <param name="nativeValue">Output native value</param>
-    void IMarshalable<Scene, AiScene>.ToNative(nint thisPtr, out AiScene nativeValue)
+    unsafe void IMarshalable<Scene, AiScene>.ToNative(nint thisPtr, out AiScene nativeValue)
     {
-        nativeValue.Flags = SceneFlags;
-        nativeValue.Materials = nint.Zero;
-        nativeValue.RootNode = nint.Zero;
-        nativeValue.Meshes = nint.Zero;
-        nativeValue.Lights = nint.Zero;
-        nativeValue.Cameras = nint.Zero;
-        nativeValue.Textures = nint.Zero;
-        nativeValue.Animations = nint.Zero;
-        nativeValue.Metadata = nint.Zero;
-        nativeValue.Name = new(Name);
-        nativeValue.Skeletons = nint.Zero;
-        nativeValue.Private = nint.Zero;
+        nativeValue.MFlags = (uint)SceneFlags;
+        nativeValue.MMaterials = null;
+        nativeValue.MRootNode = null;
+        nativeValue.MMeshes = null;
+        nativeValue.MLights = null;
+        nativeValue.MCameras = null;
+        nativeValue.MTextures = null;
+        nativeValue.MAnimations = null;
+        nativeValue.MMetaData = null;
+        nativeValue.MName = new(Name);
+        nativeValue.MSkeletons = null;
+        nativeValue.MPrivate = null;
 
-        nativeValue.NumMaterials = (uint) MaterialCount;
-        nativeValue.NumMeshes = (uint) MeshCount;
-        nativeValue.NumLights = (uint) LightCount;
-        nativeValue.NumCameras = (uint) CameraCount;
-        nativeValue.NumTextures = (uint) TextureCount;
-        nativeValue.NumAnimations = (uint) AnimationCount;
-        nativeValue.NumSkeletons = 0;
+        nativeValue.MNumMaterials = (uint) MaterialCount;
+        nativeValue.MNumMeshes = (uint) MeshCount;
+        nativeValue.MNumLights = (uint) LightCount;
+        nativeValue.MNumCameras = (uint) CameraCount;
+        nativeValue.MNumTextures = (uint) TextureCount;
+        nativeValue.MNumAnimations = (uint) AnimationCount;
+        nativeValue.MNumSkeletons = 0;
 
         //Write materials
-        if (nativeValue.NumMaterials > 0)
-            nativeValue.Materials = MemoryHelper.ToNativeArray<Material, AiMaterial>(Materials.ToArray(), true);
+        if (nativeValue.MNumMaterials > 0)
+            nativeValue.MMaterials = MemoryHelper.ToNativeArrayOfPtr<Material, AiMaterial>(Materials.ToArray());
 
         //Write scenegraph
         if(RootNode != null)
-            nativeValue.RootNode = MemoryHelper.ToNativePointer<Node, AiNode>(RootNode);
+            nativeValue.MRootNode = MemoryHelper.ToNativePointer<Node, AiNode>(RootNode);
 
         //Write meshes
-        if(nativeValue.NumMeshes > 0)
-            nativeValue.Meshes = MemoryHelper.ToNativeArray<Mesh, AiMesh>(Meshes.ToArray(), true);
+        if(nativeValue.MNumMeshes > 0)
+            nativeValue.MMeshes = MemoryHelper.ToNativeArrayOfPtr<Mesh, AiMesh>(Meshes.ToArray());
 
         //Write lights
-        if(nativeValue.NumLights > 0)
-            nativeValue.Lights = MemoryHelper.ToNativeArray<Light, AiLight>(Lights.ToArray(), true);
+        if(nativeValue.MNumLights > 0)
+            nativeValue.MLights = MemoryHelper.ToNativeArrayOfPtr<Light, AiLight>(Lights.ToArray());
 
         //Write cameras
-        if(nativeValue.NumCameras > 0)
-            nativeValue.Cameras = MemoryHelper.ToNativeArray<Camera, AiCamera>(Cameras.ToArray(), true);
+        if(nativeValue.MNumCameras > 0)
+            nativeValue.MCameras = MemoryHelper.ToNativeArrayOfPtr<Camera, AiCamera>(Cameras.ToArray());
 
         //Write textures
-        if(nativeValue.NumTextures > 0)
-            nativeValue.Textures = MemoryHelper.ToNativeArray<EmbeddedTexture, AiTexture>(Textures.ToArray(), true);
+        if(nativeValue.MNumTextures > 0)
+            nativeValue.MTextures = MemoryHelper.ToNativeArrayOfPtr<EmbeddedTexture, AiTexture>(Textures.ToArray());
 
         //Write animations
-        if(nativeValue.NumAnimations > 0)
-            nativeValue.Animations = MemoryHelper.ToNativeArray<Animation, AiAnimation>(Animations.ToArray(), true);
+        if(nativeValue.MNumAnimations > 0)
+            nativeValue.MAnimations = MemoryHelper.ToNativeArrayOfPtr<Animation, AiAnimation>(Animations.ToArray());
             
         //Write metadata
         if(Metadata.Count > 0)
-            nativeValue.Metadata = MemoryHelper.ToNativePointer<Metadata, AiMetadata>(Metadata);
+            nativeValue.MMetaData = MemoryHelper.ToNativePointer<Metadata, AiMetadata>(Metadata);
     }
 
     /// <summary>
     /// Reads the unmanaged data from the native value.
     /// </summary>
     /// <param name="nativeValue">Input native value</param>
-    void IMarshalable<Scene, AiScene>.FromNative(in AiScene nativeValue)
+    unsafe void IMarshalable<Scene, AiScene>.FromNative(in AiScene nativeValue)
     {
         Clear();
 
-        SceneFlags = nativeValue.Flags;
-        Name = AiString.GetString(nativeValue.Name); //Avoid struct copy
+        SceneFlags = (SceneFlags)nativeValue.MFlags;
+        Name = nativeValue.MName;
 
         //Read materials
-        if(nativeValue.NumMaterials > 0 && nativeValue.Materials != nint.Zero)
-            Materials.AddRange(MemoryHelper.FromNativeArray<Material, AiMaterial>(nativeValue.Materials, (int) nativeValue.NumMaterials, true));
+        if(nativeValue.MNumMaterials > 0 && nativeValue.MMaterials != null)
+            Materials.AddRange(MemoryHelper.FromNativeArray<Material, AiMaterial>((nint)nativeValue.MMaterials, (int) nativeValue.MNumMaterials, true));
 
         //Read scenegraph
-        if(nativeValue.RootNode != nint.Zero)
-            RootNode = MemoryHelper.FromNativePointer<Node, AiNode>(nativeValue.RootNode);
+        if(nativeValue.MRootNode != null)
+            RootNode = MemoryHelper.FromNativePointer<Node, AiNode>((nint)nativeValue.MRootNode);
 
         //Read meshes
-        if(nativeValue.NumMeshes > 0 && nativeValue.Meshes != nint.Zero)
-            Meshes.AddRange(MemoryHelper.FromNativeArray<Mesh, AiMesh>(nativeValue.Meshes, (int) nativeValue.NumMeshes, true));
+        if(nativeValue.MNumMeshes > 0 && nativeValue.MMeshes != null)
+            Meshes.AddRange(MemoryHelper.FromNativeArray<Mesh, AiMesh>((nint)nativeValue.MMeshes, (int) nativeValue.MNumMeshes, true));
 
         //Read lights
-        if(nativeValue.NumLights > 0 && nativeValue.Lights != nint.Zero)
-            Lights.AddRange(MemoryHelper.FromNativeArray<Light, AiLight>(nativeValue.Lights, (int) nativeValue.NumLights, true));
+        if(nativeValue.MNumLights > 0 && nativeValue.MLights != null)
+            Lights.AddRange(MemoryHelper.FromNativeArray<Light, AiLight>((nint)nativeValue.MLights, (int) nativeValue.MNumLights, true));
 
         //Read cameras
-        if(nativeValue.NumCameras > 0 && nativeValue.Cameras != nint.Zero)
-            Cameras.AddRange(MemoryHelper.FromNativeArray<Camera, AiCamera>(nativeValue.Cameras, (int) nativeValue.NumCameras, true));
+        if(nativeValue.MNumCameras > 0 && nativeValue.MCameras != null)
+            Cameras.AddRange(MemoryHelper.FromNativeArray<Camera, AiCamera>((nint)nativeValue.MCameras, (int) nativeValue.MNumCameras, true));
 
         //Read textures
-        if(nativeValue.NumTextures > 0 && nativeValue.Textures != nint.Zero)
-            Textures.AddRange(MemoryHelper.FromNativeArray<EmbeddedTexture, AiTexture>(nativeValue.Textures, (int) nativeValue.NumTextures, true));
+        if(nativeValue.MNumTextures > 0 && nativeValue.MTextures != null)
+            Textures.AddRange(MemoryHelper.FromNativeArray<EmbeddedTexture, AiTexture>((nint)nativeValue.MTextures, (int) nativeValue.MNumTextures, true));
 
         //Read animations
-        if(nativeValue.NumAnimations > 0 && nativeValue.Animations != nint.Zero)
-            Animations.AddRange(MemoryHelper.FromNativeArray<Animation, AiAnimation>(nativeValue.Animations, (int) nativeValue.NumAnimations, true));
+        if(nativeValue.MNumAnimations > 0 && nativeValue.MAnimations != null)
+            Animations.AddRange(MemoryHelper.FromNativeArray<Animation, AiAnimation>((nint)nativeValue.MAnimations, (int) nativeValue.MNumAnimations, true));
 
         //Read metadata
-        if(nativeValue.Metadata != nint.Zero)
+        if(nativeValue.MMetaData != null)
         {
-            Metadata = MemoryHelper.FromNativePointer<Metadata, AiMetadata>(nativeValue.Metadata);
+            Metadata = MemoryHelper.FromNativePointer<Metadata, AiMetadata>((nint)nativeValue.MMetaData);
 
             // Make sure we never have a null instance
             if(Metadata == null)
@@ -394,36 +392,36 @@ public sealed class Scene : IMarshalable<Scene, AiScene>
     /// </summary>
     /// <param name="nativeValue">Native value to free</param>
     /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-    public static void FreeNative(nint nativeValue, bool freeNative)
+    public static unsafe void FreeNative(nint nativeValue, bool freeNative)
     {
         if(nativeValue == nint.Zero)
             return;
 
         var aiScene = MemoryHelper.Read<AiScene>(nativeValue);
 
-        if(aiScene.NumMaterials > 0 && aiScene.Materials != nint.Zero)
-            MemoryHelper.FreeNativeArray<AiMaterial>(aiScene.Materials, (int) aiScene.NumMaterials, Material.FreeNative, true);
+        if(aiScene.MNumMaterials > 0 && aiScene.MMaterials != null)
+            MemoryHelper.FreeNativeArray(aiScene.MMaterials, (int) aiScene.MNumMaterials, Material.FreeNative);
 
-        if(aiScene.RootNode != nint.Zero)
-            Node.FreeNative(aiScene.RootNode, true);
+        if(aiScene.MRootNode != null)
+            Node.FreeNative((nint)aiScene.MRootNode, true);
 
-        if(aiScene.NumMeshes > 0 && aiScene.Meshes != nint.Zero)
-            MemoryHelper.FreeNativeArray<AiMesh>(aiScene.Meshes, (int) aiScene.NumMeshes, Mesh.FreeNative, true);
+        if(aiScene.MNumMeshes > 0 && aiScene.MMeshes != null)
+            MemoryHelper.FreeNativeArray(aiScene.MMeshes, (int) aiScene.MNumMeshes, Mesh.FreeNative);
 
-        if(aiScene.NumLights > 0 && aiScene.Lights != nint.Zero)
-            MemoryHelper.FreeNativeArray<AiLight>(aiScene.Lights, (int) aiScene.NumLights, Light.FreeNative, true);
+        if(aiScene.MNumLights > 0 && aiScene.MLights != null)
+            MemoryHelper.FreeNativeArray(aiScene.MLights, (int) aiScene.MNumLights, Light.FreeNative);
 
-        if(aiScene.NumCameras > 0 && aiScene.Cameras != nint.Zero)
-            MemoryHelper.FreeNativeArray<AiCamera>(aiScene.Cameras, (int) aiScene.NumCameras, Camera.FreeNative, true);
+        if(aiScene.MNumCameras > 0 && aiScene.MCameras != null)
+            MemoryHelper.FreeNativeArray(aiScene.MCameras, (int) aiScene.MNumCameras, Camera.FreeNative);
 
-        if(aiScene.NumTextures > 0 && aiScene.Textures != nint.Zero)
-            MemoryHelper.FreeNativeArray<AiTexture>(aiScene.Textures, (int) aiScene.NumTextures, EmbeddedTexture.FreeNative, true);
+        if(aiScene.MNumTextures > 0 && aiScene.MTextures != null)
+            MemoryHelper.FreeNativeArray(aiScene.MTextures, (int) aiScene.MNumTextures, EmbeddedTexture.FreeNative);
 
-        if(aiScene.NumAnimations > 0 && aiScene.Animations != nint.Zero)
-            MemoryHelper.FreeNativeArray<AiAnimation>(aiScene.Animations, (int) aiScene.NumAnimations, Animation.FreeNative, true);
+        if(aiScene.MNumAnimations > 0 && aiScene.MAnimations != null)
+            MemoryHelper.FreeNativeArray(aiScene.MAnimations, (int) aiScene.MNumAnimations, Animation.FreeNative);
 
-        if(aiScene.Metadata != nint.Zero)
-            Metadata.FreeNative(aiScene.Metadata, true);
+        if(aiScene.MMetaData != null)
+            Metadata.FreeNative((nint)aiScene.MMetaData, true);
             
         if(freeNative)
             MemoryHelper.FreeMemory(nativeValue);

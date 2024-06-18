@@ -1,27 +1,27 @@
 ﻿/*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using System.Collections.Generic;
-using Assimp.Unmanaged;
+using System.Numerics;
+using Silk.NET.Assimp;
 
 namespace Assimp;
 
@@ -67,7 +67,7 @@ public sealed class Bone : IMarshalable<Bone, AiBone>
     public Bone()
     {
         Name = null;
-        OffsetMatrix = Matrix3x3.Identity;
+        OffsetMatrix = Matrix4x4.Identity; //Matrix3x3.Identity; TODO: Find replacement for 3x3 matrix?
         VertexWeights = [];
     }
 
@@ -77,7 +77,7 @@ public sealed class Bone : IMarshalable<Bone, AiBone>
     /// <param name="name">Name of the bone</param>
     /// <param name="offsetMatrix">Bone's offset matrix</param>
     /// <param name="weights">Vertex weights</param>
-    public Bone(string name, Matrix3x3 offsetMatrix, VertexWeight[] weights)
+    public Bone(string name, Matrix4x4 offsetMatrix, VertexWeight[] weights)
     {
         Name = name;
         OffsetMatrix = offsetMatrix;
@@ -99,31 +99,31 @@ public sealed class Bone : IMarshalable<Bone, AiBone>
     /// </summary>
     /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
     /// <param name="nativeValue">Output native value</param>
-    void IMarshalable<Bone, AiBone>.ToNative(nint thisPtr, out AiBone nativeValue)
+    unsafe void IMarshalable<Bone, AiBone>.ToNative(nint thisPtr, out AiBone nativeValue)
     {
-        nativeValue.Name = new(Name);
-        nativeValue.OffsetMatrix = OffsetMatrix;
-        nativeValue.NumWeights = (uint) VertexWeights.Count;
-        nativeValue.Armature = nint.Zero;
-        nativeValue.Node = nint.Zero;
-        nativeValue.Weights = nint.Zero;
+        nativeValue.MName = new(Name);
+        nativeValue.MOffsetMatrix = OffsetMatrix;
+        nativeValue.MNumWeights = (uint) VertexWeights.Count;
+        nativeValue.MArmature = null;
+        nativeValue.MNode = null;
+        nativeValue.MWeights = null;
 
-        if(nativeValue.NumWeights > 0)
-            nativeValue.Weights = MemoryHelper.ToNativeArray(VertexWeights.ToArray());
+        if(nativeValue.MNumWeights > 0)
+            nativeValue.MWeights = MemoryHelper.ToNativeArray<VertexWeight>(VertexWeights.ToArray());
     }
 
     /// <summary>
     /// Reads the unmanaged data from the native value.
     /// </summary>
     /// <param name="nativeValue">Input native value</param>
-    void IMarshalable<Bone, AiBone>.FromNative(in AiBone nativeValue)
+    unsafe void IMarshalable<Bone, AiBone>.FromNative(in AiBone nativeValue)
     {
-        Name = AiString.GetString(nativeValue.Name); //Avoid struct copy
-        OffsetMatrix = nativeValue.OffsetMatrix;
+        Name = nativeValue.MName; //Avoid struct copy
+        OffsetMatrix = nativeValue.MOffsetMatrix;
         VertexWeights.Clear();
 
-        if(nativeValue.NumWeights > 0 && nativeValue.Weights != nint.Zero)
-            VertexWeights.AddRange(MemoryHelper.FromNativeArray<VertexWeight>(nativeValue.Weights, (int) nativeValue.NumWeights));
+        if(nativeValue.MNumWeights > 0 && nativeValue.MWeights != null)
+            VertexWeights.AddRange(MemoryHelper.FromNativeArray(nativeValue.MWeights, (int) nativeValue.MNumWeights));
     }
 
     /// <summary>
@@ -131,17 +131,15 @@ public sealed class Bone : IMarshalable<Bone, AiBone>
     /// </summary>
     /// <param name="nativeValue">Native value to free</param>
     /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-    public static void FreeNative(nint nativeValue, bool freeNative)
+    public static unsafe void FreeNative(nint nativeValue, bool freeNative)
     {
         if(nativeValue == nint.Zero)
             return;
 
         var aiBone = MemoryHelper.Read<AiBone>(nativeValue);
-        var numWeights = MemoryHelper.Read<int>(MemoryHelper.AddIntPtr(nativeValue, MemoryHelper.SizeOf<AiString>()));
-        var weightsPtr = MemoryHelper.AddIntPtr(nativeValue, MemoryHelper.SizeOf<AiString>() + sizeof(uint));
-
-        if(aiBone.NumWeights > 0 && aiBone.Weights != nint.Zero)
-            MemoryHelper.FreeMemory(aiBone.Weights);
+        
+        if(aiBone.MNumWeights > 0 && aiBone.MWeights != null)
+            MemoryHelper.FreeMemory(aiBone.MWeights);
 
         if(freeNative)
             MemoryHelper.FreeMemory(nativeValue);

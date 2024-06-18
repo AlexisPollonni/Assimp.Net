@@ -1,27 +1,26 @@
 ﻿/*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using System.Collections.Generic;
-using Assimp.Unmanaged;
+using Silk.NET.Assimp;
 
 namespace Assimp;
 
@@ -98,13 +97,13 @@ public sealed class NodeAnimationChannel : IMarshalable<NodeAnimationChannel, Ai
     /// Gets or sets how the animation behaves before the first key is encountered. By default the original
     /// transformation matrix of the affected node is used.
     /// </summary>
-    public AnimationBehaviour PreState { get; set; }
+    public AnimBehaviour PreState { get; set; }
 
     /// <summary>
     /// Gets or sets how the animation behaves after the last key was processed. By default the original
     /// transformation matrix of the affected node is taken.
     /// </summary>
-    public AnimationBehaviour PostState { get; set; }
+    public AnimBehaviour PostState { get; set; }
 
     /// <summary>
     /// Constructs a new instance of the <see cref="NodeAnimationChannel"/> class.
@@ -112,8 +111,8 @@ public sealed class NodeAnimationChannel : IMarshalable<NodeAnimationChannel, Ai
     public NodeAnimationChannel()
     {
         NodeName = string.Empty;
-        PreState = AnimationBehaviour.Default;
-        PostState = AnimationBehaviour.Default;
+        PreState = AnimBehaviour.Default;
+        PostState = AnimBehaviour.Default;
 
         PositionKeys = [];
         RotationKeys = [];
@@ -132,55 +131,55 @@ public sealed class NodeAnimationChannel : IMarshalable<NodeAnimationChannel, Ai
     /// </summary>
     /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
     /// <param name="nativeValue">Output native value</param>
-    void IMarshalable<NodeAnimationChannel, AiNodeAnim>.ToNative(nint thisPtr, out AiNodeAnim nativeValue)
+    unsafe void IMarshalable<NodeAnimationChannel, AiNodeAnim>.ToNative(nint thisPtr, out AiNodeAnim nativeValue)
     {
-        nativeValue.NodeName = new(NodeName);
-        nativeValue.Prestate = PreState;
-        nativeValue.PostState = PostState;
+        nativeValue.MNodeName = new(NodeName);
+        nativeValue.MPreState = PreState;
+        nativeValue.MPostState = PostState;
 
-        nativeValue.NumPositionKeys = (uint) PositionKeys.Count;
-        nativeValue.PositionKeys = nint.Zero;
+        nativeValue.MNumPositionKeys = (uint) PositionKeys.Count;
+        nativeValue.MPositionKeys = null;
 
-        if(nativeValue.NumPositionKeys > 0)
-            nativeValue.PositionKeys = MemoryHelper.ToNativeArray(PositionKeys.ToArray());
-
-
-        nativeValue.NumRotationKeys = (uint) RotationKeys.Count;
-        nativeValue.RotationKeys = nint.Zero;
-
-        if(nativeValue.NumRotationKeys > 0)
-            nativeValue.RotationKeys = MemoryHelper.ToNativeArray(RotationKeys.ToArray());
+        if(nativeValue.MNumPositionKeys > 0)
+            nativeValue.MPositionKeys = (AiVectorKey*)MemoryHelper.ToNativeArray<VectorKey>(PositionKeys.ToArray());
 
 
-        nativeValue.NumScalingKeys = (uint) ScalingKeys.Count;
-        nativeValue.ScalingKeys = nint.Zero;
+        nativeValue.MNumRotationKeys = (uint) RotationKeys.Count;
+        nativeValue.MRotationKeys = null;
 
-        if(nativeValue.NumScalingKeys > 0)
-            nativeValue.ScalingKeys = MemoryHelper.ToNativeArray(ScalingKeys.ToArray());
+        if(nativeValue.MNumRotationKeys > 0)
+            nativeValue.MRotationKeys = (QuatKey*)MemoryHelper.ToNativeArray<QuaternionKey>(RotationKeys.ToArray());
+
+
+        nativeValue.MNumScalingKeys = (uint) ScalingKeys.Count;
+        nativeValue.MScalingKeys = null;
+
+        if(nativeValue.MNumScalingKeys > 0)
+            nativeValue.MScalingKeys = (AiVectorKey*)MemoryHelper.ToNativeArray<VectorKey>(ScalingKeys.ToArray());
     }
 
     /// <summary>
     /// Reads the unmanaged data from the native value.
     /// </summary>
     /// <param name="nativeValue">Input native value</param>
-    void IMarshalable<NodeAnimationChannel, AiNodeAnim>.FromNative(in AiNodeAnim nativeValue)
+    unsafe void IMarshalable<NodeAnimationChannel, AiNodeAnim>.FromNative(in AiNodeAnim nativeValue)
     {
-        NodeName = nativeValue.NodeName.GetString();
-        PreState = nativeValue.Prestate;
-        PostState = nativeValue.PostState;
+        NodeName = nativeValue.MNodeName;
+        PreState = nativeValue.MPreState;
+        PostState = nativeValue.MPostState;
 
         PositionKeys.Clear();
         RotationKeys.Clear();
         ScalingKeys.Clear();
 
-        if(nativeValue.NumPositionKeys > 0 && nativeValue.PositionKeys != nint.Zero)
-            PositionKeys.AddRange(MemoryHelper.FromNativeArray<VectorKey>(nativeValue.PositionKeys, (int) nativeValue.NumPositionKeys));
+        if(nativeValue.MNumPositionKeys > 0 && nativeValue.MPositionKeys != null)
+            PositionKeys.AddRange(MemoryHelper.FromNativeArray((VectorKey*)nativeValue.MPositionKeys, (int) nativeValue.MNumPositionKeys));
 
-        if(nativeValue.NumRotationKeys > 0 && nativeValue.RotationKeys != nint.Zero)
-            RotationKeys.AddRange(MemoryHelper.FromNativeArray<QuaternionKey>(nativeValue.RotationKeys, (int) nativeValue.NumRotationKeys));
+        if(nativeValue.MNumRotationKeys > 0 && nativeValue.MRotationKeys != null)
+            RotationKeys.AddRange(MemoryHelper.FromNativeArray((QuaternionKey*)nativeValue.MRotationKeys, (int) nativeValue.MNumRotationKeys));
 
-        if(nativeValue.NumScalingKeys > 0 && nativeValue.ScalingKeys != nint.Zero)
-            ScalingKeys.AddRange(MemoryHelper.FromNativeArray<VectorKey>(nativeValue.ScalingKeys, (int) nativeValue.NumScalingKeys));
+        if(nativeValue.MNumScalingKeys > 0 && nativeValue.MScalingKeys != null)
+            ScalingKeys.AddRange(MemoryHelper.FromNativeArray((VectorKey*)nativeValue.MScalingKeys, (int) nativeValue.MNumScalingKeys));
     }
 
     /// <summary>
@@ -188,21 +187,21 @@ public sealed class NodeAnimationChannel : IMarshalable<NodeAnimationChannel, Ai
     /// </summary>
     /// <param name="nativeValue">Native value to free</param>
     /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-    public static void FreeNative(nint nativeValue, bool freeNative)
+    public static unsafe void FreeNative(nint nativeValue, bool freeNative)
     {
         if(nativeValue == nint.Zero)
             return;
 
         var aiNodeAnim = MemoryHelper.Read<AiNodeAnim>(nativeValue);
 
-        if(aiNodeAnim.NumPositionKeys > 0 && aiNodeAnim.PositionKeys != nint.Zero)
-            MemoryHelper.FreeMemory(aiNodeAnim.PositionKeys);
+        if(aiNodeAnim.MNumPositionKeys > 0 && aiNodeAnim.MPositionKeys != null)
+            MemoryHelper.FreeMemory(aiNodeAnim.MPositionKeys);
 
-        if(aiNodeAnim.NumRotationKeys > 0 && aiNodeAnim.RotationKeys != nint.Zero)
-            MemoryHelper.FreeMemory(aiNodeAnim.RotationKeys);
+        if(aiNodeAnim.MNumRotationKeys > 0 && aiNodeAnim.MRotationKeys != null)
+            MemoryHelper.FreeMemory(aiNodeAnim.MRotationKeys);
 
-        if(aiNodeAnim.NumScalingKeys > 0 && aiNodeAnim.ScalingKeys != nint.Zero)
-            MemoryHelper.FreeMemory(aiNodeAnim.ScalingKeys);
+        if(aiNodeAnim.MNumScalingKeys > 0 && aiNodeAnim.MScalingKeys != null)
+            MemoryHelper.FreeMemory(aiNodeAnim.MScalingKeys);
 
         if(freeNative)
             MemoryHelper.FreeMemory(nativeValue);

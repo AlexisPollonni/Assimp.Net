@@ -1,27 +1,26 @@
 ﻿/*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using System;
-using Assimp.Unmanaged;
+using Silk.NET.Core.Native;
 
 namespace Assimp;
 
@@ -160,31 +159,31 @@ public sealed class EmbeddedTexture : IMarshalable<EmbeddedTexture, AiTexture>
     /// </summary>
     /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
     /// <param name="nativeValue">Output native value</param>
-    void IMarshalable<EmbeddedTexture, AiTexture>.ToNative(nint thisPtr, out AiTexture nativeValue)
+    unsafe void IMarshalable<EmbeddedTexture, AiTexture>.ToNative(nint thisPtr, out AiTexture nativeValue)
     {
-        nativeValue.Filename = new(Filename);
+        nativeValue.MFilename = new(Filename);
             
         if(IsCompressed)
         {
-            nativeValue.Width = (uint) CompressedDataSize;
-            nativeValue.Height = 0;
-            nativeValue.Data = nint.Zero;
+            nativeValue.MWidth = (uint) CompressedDataSize;
+            nativeValue.MHeight = 0;
+            nativeValue.PcData = null;
 
             if(CompressedDataSize > 0)
-                nativeValue.Data = MemoryHelper.ToNativeArray(CompressedData);
-
-            nativeValue.SetFormatHint(CompressedFormatHint);
+                nativeValue.PcData = (Silk.NET.Assimp.Texel*)MemoryHelper.ToNativeArray<byte>(CompressedData);
+            
+            SetFormatHint(nativeValue, CompressedFormatHint);
         }
         else
         {
-            nativeValue.Width = (uint) Width;
-            nativeValue.Height = (uint) Height;
-            nativeValue.Data = nint.Zero;
+            nativeValue.MWidth = (uint) Width;
+            nativeValue.MHeight = (uint) Height;
+            nativeValue.PcData = null;
 
             if(NonCompressedDataSize > 0)
-                nativeValue.Data = MemoryHelper.ToNativeArray(NonCompressedData);
+                nativeValue.PcData = (Silk.NET.Assimp.Texel*)MemoryHelper.ToNativeArray<Texel>(NonCompressedData);
 
-            nativeValue.SetFormatHint(null);
+            SetFormatHint(nativeValue, null);
         }
     }
 
@@ -192,10 +191,10 @@ public sealed class EmbeddedTexture : IMarshalable<EmbeddedTexture, AiTexture>
     /// Reads the unmanaged data from the native value.
     /// </summary>
     /// <param name="nativeValue">Input native value</param>
-    void IMarshalable<EmbeddedTexture, AiTexture>.FromNative(in AiTexture nativeValue)
+    unsafe void IMarshalable<EmbeddedTexture, AiTexture>.FromNative(in AiTexture nativeValue)
     {
-        Filename = AiString.GetString(nativeValue.Filename); //Avoid struct copy;
-        IsCompressed = nativeValue.Height == 0;
+        Filename = nativeValue.MFilename; //Avoid struct copy;
+        IsCompressed = nativeValue.MHeight == 0;
 
         if(IsCompressed)
         {
@@ -204,10 +203,10 @@ public sealed class EmbeddedTexture : IMarshalable<EmbeddedTexture, AiTexture>
             NonCompressedData = null;
             CompressedData = null;
 
-            if(nativeValue.Width > 0 && nativeValue.Data != nint.Zero)
-                CompressedData = MemoryHelper.FromNativeArray<byte>(nativeValue.Data, (int) nativeValue.Width);
+            if(nativeValue.MWidth > 0 && nativeValue.PcData != null)
+                CompressedData = MemoryHelper.FromNativeArray((byte*)nativeValue.PcData, (int) nativeValue.MWidth);
 
-            CompressedFormatHint = AiTexture.GetFormatHint(nativeValue); //Avoid struct copy
+            CompressedFormatHint = GetFormatHint(nativeValue); //Avoid struct copy
         }
         else
         {
@@ -215,13 +214,13 @@ public sealed class EmbeddedTexture : IMarshalable<EmbeddedTexture, AiTexture>
             CompressedFormatHint = null;
             NonCompressedData = null;
 
-            Width = (int) nativeValue.Width;
-            Height = (int) nativeValue.Height;
+            Width = (int) nativeValue.MWidth;
+            Height = (int) nativeValue.MHeight;
 
             var size = Width * Height;
 
-            if(size > 0 && nativeValue.Data != nint.Zero)
-                NonCompressedData = MemoryHelper.FromNativeArray<Texel>(nativeValue.Data, size);
+            if(size > 0 && nativeValue.PcData != null)
+                NonCompressedData = MemoryHelper.FromNativeArray((Texel*)nativeValue.PcData, size);
         }
     }
 
@@ -230,19 +229,37 @@ public sealed class EmbeddedTexture : IMarshalable<EmbeddedTexture, AiTexture>
     /// </summary>
     /// <param name="nativeValue">Native value to free</param>
     /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-    public static void FreeNative(nint nativeValue, bool freeNative)
+    public static unsafe void FreeNative(nint nativeValue, bool freeNative)
     {
         if(nativeValue == nint.Zero)
             return;
 
         var aiTexture = MemoryHelper.Read<AiTexture>(nativeValue);
 
-        if(aiTexture.Width > 0 && aiTexture.Data != nint.Zero)
-            MemoryHelper.FreeMemory(aiTexture.Data);
+        if(aiTexture.MWidth > 0 && aiTexture.PcData != null)
+            MemoryHelper.FreeMemory(aiTexture.PcData);
 
         if(freeNative)
             MemoryHelper.FreeMemory(nativeValue);
     }
 
     #endregion
+
+
+    private static unsafe void SetFormatHint(AiTexture texture, string? hint)
+    {
+        if (hint is null)
+        {
+            texture.AchFormatHint = null;
+            return;
+        }
+        
+        var ptr = (byte*)SilkMarshal.StringToPtr(hint);
+        texture.AchFormatHint = ptr;
+    }
+
+    private static unsafe string GetFormatHint(AiTexture texture)
+    {
+        return SilkMarshal.PtrToString((nint)texture.AchFormatHint);
+    }
 }

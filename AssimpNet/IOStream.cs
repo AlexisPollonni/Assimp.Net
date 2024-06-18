@@ -1,28 +1,26 @@
 /*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using System;
-using System.Runtime.InteropServices;
-using Assimp.Unmanaged;
+using Silk.NET.Assimp;
 
 namespace Assimp;
 
@@ -33,7 +31,7 @@ namespace Assimp;
 public abstract class IOStream : IDisposable
 {
   // Don't delete these, holding onto the callbacks prevent them from being GC'ed inappropiately
-  private AiFileWriteProc m_writeProc;
+  private AiFileReadProc m_writeProc;
   private AiFileReadProc m_readProc;
   private AiFileTellProc m_tellProc;
   private AiFileTellProc m_fileSizeProc;
@@ -65,7 +63,7 @@ public abstract class IOStream : IDisposable
     get;
   }
 
-  internal nint AiFile { get; private set; }
+  internal unsafe AiFile* AiFile { get; private set; }
 
   /// <summary>
   /// Constructs a new IOStream.
@@ -81,7 +79,7 @@ public abstract class IOStream : IDisposable
   /// <param name="fileMode">Desired file access mode</param>
   /// <param name="initialize">True if initialize should be immediately called with the default callbacks. Set this to false
   /// if your subclass requires a different way to setup the function pointers.</param>
-  protected IOStream(string pathToFile, FileIOMode fileMode, bool initialize = true)
+  protected unsafe IOStream(string pathToFile, FileIOMode fileMode, bool initialize = true)
   {
     PathToFile = pathToFile;
     FileMode = fileMode;
@@ -101,7 +99,7 @@ public abstract class IOStream : IDisposable
   /// <param name="aiFileSeek">Handles seek requests.</param>
   /// <param name="aiFileFlushProc">Handles flush requests.</param>
   /// <param name="userData">Additional user data, if any.</param>
-  protected void Initialize(AiFileWriteProc aiFileWriteProc, AiFileReadProc aiFileReadProc, AiFileTellProc aiFileTellProc, AiFileTellProc aiFileSizeProc, AiFileSeek aiFileSeek, AiFileFlushProc aiFileFlushProc, nint userData = default)
+  protected unsafe void Initialize(AiFileReadProc aiFileWriteProc, AiFileReadProc aiFileReadProc, AiFileTellProc aiFileTellProc, AiFileTellProc aiFileSizeProc, AiFileSeek aiFileSeek, AiFileFlushProc aiFileFlushProc, nint userData = default)
   {
     m_writeProc = aiFileWriteProc;
     m_readProc = aiFileReadProc;
@@ -111,16 +109,16 @@ public abstract class IOStream : IDisposable
     m_flushProc = aiFileFlushProc;
 
     AiFile file;
-    file.WriteProc = Marshal.GetFunctionPointerForDelegate(aiFileWriteProc);
-    file.ReadProc = Marshal.GetFunctionPointerForDelegate(aiFileReadProc);
-    file.TellProc = Marshal.GetFunctionPointerForDelegate(aiFileTellProc);
-    file.FileSizeProc = Marshal.GetFunctionPointerForDelegate(aiFileSizeProc);
-    file.SeekProc = Marshal.GetFunctionPointerForDelegate(aiFileSeek);
-    file.FlushProc = Marshal.GetFunctionPointerForDelegate(aiFileFlushProc);
-    file.UserData = userData;
+    file.WriteProc = aiFileWriteProc;
+    file.ReadProc = aiFileReadProc;
+    file.TellProc = aiFileTellProc;
+    file.FileSizeProc = aiFileSizeProc;
+    file.SeekProc = aiFileSeek;
+    file.FlushProc = aiFileFlushProc;
+    file.UserData = (byte*)userData;
 
-    AiFile = MemoryHelper.AllocateMemory(MemoryHelper.SizeOf<AiFile>());
-    Marshal.StructureToPtr(file, AiFile, false);
+    AiFile = (AiFile*)MemoryHelper.AllocateMemory(MemoryHelper.SizeOf<AiFile>());
+    Marshal.StructureToPtr(file, (nint)AiFile, false);
   }
 
   /// <summary>
@@ -144,14 +142,14 @@ public abstract class IOStream : IDisposable
   /// Releases unmanaged and - optionally - managed resources.
   /// </summary>
   /// <param name="disposing">True to release both managed and unmanaged resources; False to release only unmanaged resources.</param>
-  protected virtual void Dispose(bool disposing)
+  protected virtual unsafe void Dispose(bool disposing)
   {
     if (!IsDisposed)
     {
-      if (AiFile != nint.Zero)
+      if (AiFile != null)
       {
         MemoryHelper.FreeMemory(AiFile);
-        AiFile = nint.Zero;
+        AiFile = null;
       }
 
       if (disposing)
@@ -190,7 +188,7 @@ public abstract class IOStream : IDisposable
   /// <param name="offset">Offset in bytes from the origin</param>
   /// <param name="seekOrigin">Origin reference</param>
   /// <returns>ReturnCode indicating success or failure.</returns>
-  public abstract ReturnCode Seek(long offset, Origin seekOrigin);
+  public abstract Return Seek(long offset, Origin seekOrigin);
 
   /// <summary>
   /// Gets the current file position pointer (in bytes).
@@ -226,7 +224,7 @@ public abstract class IOStream : IDisposable
   /// <param name="sizeOfElemInBytes"></param>
   /// <param name="numElements"></param>
   /// <returns></returns>
-  protected nuint OnAiFileWriteProc(nint file, nint dataToWrite, nuint sizeOfElemInBytes, nuint numElements)
+  protected unsafe nuint OnAiFileWriteProc(AiFile* file, byte* dataToWrite, nuint sizeOfElemInBytes, nuint numElements)
   {
     if (AiFile != file)
       return nuint.Zero;
@@ -260,7 +258,7 @@ public abstract class IOStream : IDisposable
   /// <param name="sizeOfElemInBytes"></param>
   /// <param name="numElements"></param>
   /// <returns></returns>
-  protected nuint OnAiFileReadProc(nint file, nint dataRead, nuint sizeOfElemInBytes, nuint numElements)
+  protected unsafe nuint OnAiFileReadProc(AiFile* file, byte* dataRead, nuint sizeOfElemInBytes, nuint numElements)
   {
     if (AiFile != file)
       return nuint.Zero;
@@ -278,7 +276,7 @@ public abstract class IOStream : IDisposable
       actualCount = Read(byteBuffer, count);
 
       if (actualCount > 0)
-        MemoryHelper.Write(dataRead, byteBuffer, 0, (int) actualCount);
+        MemoryHelper.Write<byte>((nint)dataRead, byteBuffer, 0, (int) actualCount);
     }
     catch (Exception) { /*Assimp will report an IO error*/ }
 
@@ -290,7 +288,7 @@ public abstract class IOStream : IDisposable
   /// </summary>
   /// <param name="file"></param>
   /// <returns></returns>
-  protected nuint OnAiFileTellProc(nint file)
+  protected unsafe nuint OnAiFileTellProc(AiFile* file)
   {
     if (AiFile != file)
       return nuint.Zero;
@@ -311,7 +309,7 @@ public abstract class IOStream : IDisposable
   /// </summary>
   /// <param name="file"></param>
   /// <returns></returns>
-  protected nuint OnAiFileSizeProc(nint file)
+  protected unsafe nuint OnAiFileSizeProc(AiFile* file)
   {
     if (AiFile != file)
       return nuint.Zero;
@@ -334,12 +332,12 @@ public abstract class IOStream : IDisposable
   /// <param name="offset"></param>
   /// <param name="seekOrigin"></param>
   /// <returns></returns>
-  protected ReturnCode OnAiFileSeekProc(nint file, nuint offset, Origin seekOrigin)
+  protected unsafe Return OnAiFileSeekProc(AiFile* file, nuint offset, Origin seekOrigin)
   {
     if (AiFile != file)
-      return ReturnCode.Failure;
+      return Return.Failure;
 
-    var code = ReturnCode.Failure;
+    var code = Return.Failure;
 
     try
     {
@@ -352,7 +350,7 @@ public abstract class IOStream : IDisposable
 
   /// <summary>Callback for Assimp that handles flushes.</summary>
   /// <param name="file"></param>
-  protected void OnAiFileFlushProc(nint file)
+  protected unsafe void OnAiFileFlushProc(AiFile* file)
   {
     if (AiFile != file)
       return;

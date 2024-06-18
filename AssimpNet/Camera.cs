@@ -1,26 +1,26 @@
 ﻿/*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using Assimp.Unmanaged;
+using System.Numerics;
 
 namespace Assimp;
 
@@ -44,20 +44,20 @@ public sealed class Camera : IMarshalable<Camera, AiCamera>
     /// Gets or sets the position of the camera relative to the coordinate space defined by
     /// the corresponding node. THe default value is 0|0|0.
     /// </summary>
-    public Vector3D Position { get; set; }
+    public Vector3 Position { get; set; }
 
     /// <summary>
     /// Gets or sets the 'up' vector of the camera, relative to the coordinate space defined by the
     /// corresponding node. The 'right' vector of the camera is the cross product of the up
     /// and direction vectors. The default value is 0|1|0.
     /// </summary>
-    public Vector3D Up { get; set; }
+    public Vector3 Up { get; set; }
 
     /// <summary>
     /// Gets or sets the viewing direction of the camera, relative to the coordinate space defined by the corresponding node.
     /// The default value is 0|0|1.
     /// </summary>
-    public Vector3D Direction { get; set; }
+    public Vector3 Direction { get; set; }
 
     /// <summary>
     /// Gets or sets the half horizontal field of view angle, in radians. The FoV angle is
@@ -95,34 +95,34 @@ public sealed class Camera : IMarshalable<Camera, AiCamera>
         get
         {
             var zAxis = Direction;
-            zAxis.Normalize();
+            zAxis=Vector3.Normalize(zAxis);
             var yAxis = Up;
-            yAxis.Normalize();
-            var xAxis = Vector3D.Cross(Up, Direction);
-            zAxis.Normalize();
+            yAxis=Vector3.Normalize(yAxis);
+            var xAxis = Vector3.Cross(Up, Direction);
+            xAxis = Vector3.Normalize(xAxis);
 
             //Assimp docs *say* they deal with Row major matrices,
             //but aiCamera.h has this calc done with translation in the 4th column
             Matrix4x4 mat;
-            mat.A1 = xAxis.X;
-            mat.A2 = xAxis.Y;
-            mat.A3 = xAxis.Z;
-            mat.A4 = 0;
+            mat.M11 = xAxis.X;
+            mat.M12 = xAxis.Y;
+            mat.M13 = xAxis.Z;
+            mat.M14 = 0;
 
-            mat.B1 = yAxis.X;
-            mat.B2 = yAxis.Y;
-            mat.B3 = yAxis.Z;
-            mat.B4 = 0;
+            mat.M21 = yAxis.X;
+            mat.M22 = yAxis.Y;
+            mat.M23 = yAxis.Z;
+            mat.M24 = 0;
 
-            mat.C1 = zAxis.X;
-            mat.C2 = zAxis.Y;
-            mat.C3 = zAxis.Z;
-            mat.C4 = 0;
+            mat.M31 = zAxis.X;
+            mat.M32 = zAxis.Y;
+            mat.M33 = zAxis.Z;
+            mat.M34 = 0;
 
-            mat.D1 = -Vector3D.Dot(xAxis, Position);
-            mat.D2 = -Vector3D.Dot(yAxis, Position);
-            mat.D3 = -Vector3D.Dot(zAxis, Position);
-            mat.D4 = 1.0f;
+            mat.M41 = -Vector3.Dot(xAxis, Position);
+            mat.M42 = -Vector3.Dot(yAxis, Position);
+            mat.M43 = -Vector3.Dot(zAxis, Position);
+            mat.M44 = 1.0f;
 
             return mat;
         }
@@ -150,14 +150,17 @@ public sealed class Camera : IMarshalable<Camera, AiCamera>
     /// <param name="nativeValue">Output native value</param>
     void IMarshalable<Camera, AiCamera>.ToNative(nint thisPtr, out AiCamera nativeValue)
     {
-        nativeValue.Name = new(Name);
-        nativeValue.Position = Position;
-        nativeValue.LookAt = Direction;
-        nativeValue.Up = Up;
-        nativeValue.HorizontalFOV = FieldOfview;
-        nativeValue.ClipPlaneFar = ClipPlaneFar;
-        nativeValue.ClipPlaneNear = ClipPlaneNear;
-        nativeValue.Aspect = AspectRatio;
+        nativeValue = new()
+        {
+            MName = new(Name),
+            MPosition = Position,
+            MLookAt = Direction,
+            MUp = Up,
+            MHorizontalFOV = FieldOfview,
+            MClipPlaneFar = ClipPlaneFar,
+            MClipPlaneNear = ClipPlaneNear,
+            MAspect = AspectRatio
+        };
     }
 
     /// <summary>
@@ -166,14 +169,14 @@ public sealed class Camera : IMarshalable<Camera, AiCamera>
     /// <param name="nativeValue">Input native value</param>
     void IMarshalable<Camera, AiCamera>.FromNative(in AiCamera nativeValue)
     {
-        Name = AiString.GetString(nativeValue.Name); //Avoid struct copy
-        Position = nativeValue.Position;
-        Direction = nativeValue.LookAt;
-        Up = nativeValue.Up;
-        FieldOfview = nativeValue.HorizontalFOV;
-        ClipPlaneFar = nativeValue.ClipPlaneFar;
-        ClipPlaneNear = nativeValue.ClipPlaneNear;
-        AspectRatio = nativeValue.Aspect;
+        Name = nativeValue.MName;
+        Position = nativeValue.MPosition;
+        Direction = nativeValue.MLookAt;
+        Up = nativeValue.MUp;
+        FieldOfview = nativeValue.MHorizontalFOV;
+        ClipPlaneFar = nativeValue.MClipPlaneFar;
+        ClipPlaneNear = nativeValue.MClipPlaneNear;
+        AspectRatio = nativeValue.MAspect;
     }
 
     /// <summary>

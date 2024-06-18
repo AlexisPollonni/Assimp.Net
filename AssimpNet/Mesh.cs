@@ -1,33 +1,28 @@
 ﻿/*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using System;
-using System.Collections.Generic;
 using System.Numerics;
-using System.Runtime.InteropServices;
-using Assimp.Unmanaged;
 using Silk.NET.Assimp;
 using Silk.NET.Maths;
-using AiMesh = Silk.NET.Assimp.Mesh;
 
 namespace Assimp;
 
@@ -551,11 +546,11 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
 
         //Bones
         if(nativeValue.MNumBones > 0)
-            nativeValue.MBones = MemoryHelper.ToNativeArray<Bone, AiBone>(Bones.ToArray(), true);
+            nativeValue.MBones = MemoryHelper.ToNativeArrayOfPtr<Bone, AiBone>(Bones.ToArray());
 
         //Attachment meshes
         if(nativeValue.MNumAnimMeshes > 0)
-            nativeValue.MAnimMeshes = MemoryHelper.ToNativeArray<MeshAnimationAttachment, AiAnimMesh>(MeshAnimationAttachments.ToArray());
+            nativeValue.MAnimMeshes = MemoryHelper.ToNativeArrayOfPtr<MeshAnimationAttachment, AiAnimMesh>(MeshAnimationAttachments.ToArray());
     }
 
     /// <summary>
@@ -678,15 +673,15 @@ public sealed class Mesh : IMarshalable<Mesh, AiMesh>
 
         //Faces
         if(aiMesh.MNumFaces > 0 && aiMesh.MFaces != null)
-            MemoryHelper.FreeNativeArray<AiFace>(aiMesh.MFaces, (int) aiMesh.MNumFaces, Face.FreeNative);
+            MemoryHelper.FreeNativeArray(aiMesh.MFaces, (int) aiMesh.MNumFaces, Face.FreeNative);
 
         //Bones
         if(aiMesh.MNumBones > 0 && aiMesh.MBones != null)
-            MemoryHelper.FreeNativeArray<AiBone>(aiMesh.MBones, (int) aiMesh.MNumBones, Bone.FreeNative, true);
+            MemoryHelper.FreeNativeArray(aiMesh.MBones, (int) aiMesh.MNumBones, Bone.FreeNative);
 
         //Attachment meshes
         if(aiMesh.MNumAnimMeshes > 0 && aiMesh.MAnimMeshes != null)
-            MemoryHelper.FreeNativeArray<AiAnimMesh>(aiMesh.MAnimMeshes, (int) aiMesh.MNumAnimMeshes, MeshAnimationAttachment.FreeNative, true);
+            MemoryHelper.FreeNativeArray(aiMesh.MAnimMeshes, (int) aiMesh.MNumAnimMeshes, MeshAnimationAttachment.FreeNative);
 
         if(freeNative)
             MemoryHelper.FreeMemory(nativeValue);

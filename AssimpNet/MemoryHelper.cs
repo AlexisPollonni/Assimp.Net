@@ -1,32 +1,28 @@
 /*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using Assimp.Unmanaged;
 
 namespace Assimp;
 
@@ -47,6 +43,13 @@ public static class MemoryHelper
 
     #region Marshaling Interop
 
+    public static unsafe TNative** ToNativeArrayOfPtr<TManaged, TNative>(TManaged[] managedArray) 
+        where TManaged : class, IMarshalable<TManaged, TNative>, new()
+        where TNative : unmanaged
+    {
+        return (TNative**)ToNativeArray<TManaged, TNative>(managedArray, true);
+    }
+    
     /// <summary>
     /// Marshals an array of managed values to a c-style unmanaged array (void*).
     /// </summary>
@@ -54,9 +57,9 @@ public static class MemoryHelper
     /// <typeparam name="TNative">Native type</typeparam>
     /// <param name="managedArray">Array of managed values</param>
     /// <returns>Pointer to unmanaged memory</returns>
-    public static nint ToNativeArray<TManaged, TNative>(TManaged[] managedArray)
+    public static unsafe TNative* ToNativeArray<TManaged, TNative>(TManaged[] managedArray)
         where TManaged : class, IMarshalable<TManaged, TNative>, new()
-        where TNative : struct
+        where TNative : unmanaged
     {
         return ToNativeArray<TManaged, TNative>(managedArray, false);
     }
@@ -70,12 +73,12 @@ public static class MemoryHelper
     /// <param name="managedArray">Array of managed values</param>
     /// <param name="arrayOfPointers">True if the pointer is an array of pointers, false otherwise.</param>
     /// <returns>Pointer to unmanaged memory</returns>
-    public static nint ToNativeArray<TManaged, TNative>(TManaged[] managedArray, bool arrayOfPointers)
+    private static unsafe TNative* ToNativeArray<TManaged, TNative>(TManaged[] managedArray, bool arrayOfPointers)
         where TManaged : class, IMarshalable<TManaged, TNative>, new()
-        where TNative : struct
+        where TNative : unmanaged
     {
         if(managedArray == null || managedArray.Length == 0)
-            return nint.Zero;
+            return null;
 
         var isNativeBlittable = IsNativeBlittable<TManaged, TNative>(managedArray);
         var sizeofNative = isNativeBlittable ? SizeOf<TNative>() : MarshalSizeOf<TNative>();
@@ -135,7 +138,7 @@ public static class MemoryHelper
             }
         }
 
-        return nativeArray;
+        return (TNative*)nativeArray;
     }
 
     /// <summary>
@@ -253,9 +256,14 @@ public static class MemoryHelper
     /// <param name="nativeArray">Pointer to unmanaged memory</param>
     /// <param name="length">Number of elements to free</param>
     /// <param name="action">Delegate that performs the necessary cleanup</param>
-    public static void FreeNativeArray<T>(nint nativeArray, int length, FreeNativeDelegate action) where T : struct
+    public static unsafe void FreeNativeArray<T>(T* nativeArray, int length, FreeNativeDelegate action) where T : unmanaged
     {
-        FreeNativeArray<T>(nativeArray, length, action, false);
+        FreeNativeArray<T>((nint)nativeArray, length, action, false);
+    }
+    
+    public static unsafe void FreeNativeArray<T>(T** nativeArray, int length, FreeNativeDelegate action) where T : unmanaged
+    {
+        FreeNativeArray<T>((nint)nativeArray, length, action, true);
     }
 
     /// <summary>
@@ -267,7 +275,7 @@ public static class MemoryHelper
     /// <param name="length">Number of elements to free</param>
     /// <param name="action">Delegate that performs the necessary cleanup</param>
     /// <param name="arrayOfPointers">True if the pointer is an array of pointers, false otherwise.</param>
-    public static void FreeNativeArray<T>(nint nativeArray, int length, FreeNativeDelegate action, bool arrayOfPointers) where T : struct
+    private static void FreeNativeArray<T>(nint nativeArray, int length, FreeNativeDelegate action, bool arrayOfPointers) where T : unmanaged
     {
         if(nativeArray == nint.Zero || length == 0 || action == null)
             return;
@@ -297,13 +305,13 @@ public static class MemoryHelper
     /// <typeparam name="TNative">Unmanaged type</typeparam>
     /// <param name="managedValue">Managed value to marshal</param>
     /// <returns>Pointer to unmanaged memory</returns>
-    public static nint ToNativePointer<TManaged, TNative>(TManaged managedValue)
+    public static unsafe TNative* ToNativePointer<TManaged, TNative>(TManaged managedValue)
         where TManaged : class, IMarshalable<TManaged, TNative>, new()
-        where TNative : struct
+        where TNative : unmanaged
     {
 
         if(managedValue == null)
-            return nint.Zero;
+            return null;
 
         var sizeofNative = managedValue.IsNativeBlittable ? SizeOf<TNative>() : MarshalSizeOf<TNative>();
 
@@ -322,7 +330,7 @@ public static class MemoryHelper
             MarshalPointer(nativeValue, ptr);
         }
 
-        return ptr;
+        return (TNative*)ptr;
     }
 
     /// <summary>

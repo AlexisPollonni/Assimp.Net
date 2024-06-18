@@ -1,28 +1,27 @@
 ﻿/*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using System;
-using System.Collections.Generic;
-using Assimp.Unmanaged;
+using Silk.NET.Assimp;
+using ShadingMode = Silk.NET.Assimp.ShadingMode;
 
 namespace Assimp;
 
@@ -117,7 +116,7 @@ public sealed class Material : IMarshalable<Material, AiMaterial>
     public bool HasShadingMode => HasProperty(AiMatKeys.SHADING_MODEL);
 
     /// <summary>
-    /// Gets the shading mode. Default value is <see cref="Assimp.ShadingMode.None"/>, meaning it is not defined.
+    /// Gets the shading mode. Default value is <see cref="Silk.NET.Assimp.ShadingMode.None"/>, meaning it is not defined.
     /// </summary>
     public ShadingMode ShadingMode
     {
@@ -127,7 +126,7 @@ public sealed class Material : IMarshalable<Material, AiMaterial>
             if(prop != null)
                 return (ShadingMode) prop.GetIntegerValue();
 
-            return ShadingMode.None;
+            return ShadingMode.NoShading;
         }
         set
         {
@@ -185,7 +184,7 @@ public sealed class Material : IMarshalable<Material, AiMaterial>
     public bool HasBlendMode => HasProperty(AiMatKeys.BLEND_FUNC);
 
     /// <summary>
-    /// Gets the blending mode. Default value is <see cref="Assimp.BlendMode.Default"/>.
+    /// Gets the blending mode. Default value is <see cref="Silk.NET.Assimp.BlendMode.Default"/>.
     /// </summary>
     public BlendMode BlendMode
     {
@@ -1322,10 +1321,10 @@ public sealed class Material : IMarshalable<Material, AiMaterial>
         texture.FilePath = texNameProp.GetStringValue();
         texture.TextureType = texType;
         texture.TextureIndex = texIndex;
-        texture.Mapping = mappingNameProp != null ? (TextureMapping) mappingNameProp.GetIntegerValue() : TextureMapping.FromUV;
+        texture.Mapping = mappingNameProp != null ? (TextureMapping) mappingNameProp.GetIntegerValue() : TextureMapping.UV;
         texture.UVIndex = uvIndexNameProp?.GetIntegerValue() ?? 0;
         texture.BlendFactor = blendFactorNameProp?.GetFloatValue() ?? 0.0f;
-        texture.Operation = texOpNameProp != null ? (TextureOperation) texOpNameProp.GetIntegerValue() : 0;
+        texture.Operation = texOpNameProp != null ? (TextureOp) texOpNameProp.GetIntegerValue() : 0;
         texture.WrapModeU = uMapModeNameProp != null ? (TextureWrapMode) uMapModeNameProp.GetIntegerValue() : TextureWrapMode.Wrap;
         texture.WrapModeV = vMapModeNameProp != null ? (TextureWrapMode) vMapModeNameProp.GetIntegerValue() : TextureWrapMode.Wrap;
         texture.Flags = texFlagsNameProp?.GetIntegerValue() ?? 0;
@@ -1385,17 +1384,17 @@ public sealed class Material : IMarshalable<Material, AiMaterial>
     /// </summary>
     /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
     /// <param name="nativeValue">Output native value</param>
-    void IMarshalable<Material, AiMaterial>.ToNative(nint thisPtr, out AiMaterial nativeValue)
+    unsafe void IMarshalable<Material, AiMaterial>.ToNative(nint thisPtr, out AiMaterial nativeValue)
     {
-        nativeValue.NumAllocated = nativeValue.NumProperties = (uint) m_properties.Count;
-        nativeValue.Properties = nint.Zero;
+        nativeValue.MNumAllocated = nativeValue.MNumProperties = (uint) m_properties.Count;
+        nativeValue.MProperties = null;
 
         if(m_properties.Count > 0)
         {
             var matProps = new MaterialProperty[m_properties.Values.Count];
             m_properties.Values.CopyTo(matProps, 0);
 
-            nativeValue.Properties = MemoryHelper.ToNativeArray<MaterialProperty, AiMaterialProperty>(matProps, true);
+            nativeValue.MProperties = MemoryHelper.ToNativeArrayOfPtr<MaterialProperty, AiMaterialProperty>(matProps);
         }
     }
 
@@ -1403,13 +1402,13 @@ public sealed class Material : IMarshalable<Material, AiMaterial>
     /// Reads the unmanaged data from the native value.
     /// </summary>
     /// <param name="nativeValue">Input native value</param>
-    void IMarshalable<Material, AiMaterial>.FromNative(in AiMaterial nativeValue)
+    unsafe void IMarshalable<Material, AiMaterial>.FromNative(in AiMaterial nativeValue)
     {
         Clear();
 
-        if(nativeValue.NumProperties > 0 && nativeValue.Properties != nint.Zero)
+        if(nativeValue.MNumProperties > 0 && nativeValue.MProperties != null)
         {
-            var matProps = MemoryHelper.FromNativeArray<MaterialProperty, AiMaterialProperty>(nativeValue.Properties, (int) nativeValue.NumProperties, true);
+            var matProps = MemoryHelper.FromNativeArray<MaterialProperty, AiMaterialProperty>((nint)nativeValue.MProperties, (int) nativeValue.MNumProperties, true);
 
             foreach(var matProp in matProps)
             {
@@ -1423,15 +1422,15 @@ public sealed class Material : IMarshalable<Material, AiMaterial>
     /// </summary>
     /// <param name="nativeValue">Native value to free</param>
     /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-    public static void FreeNative(nint nativeValue, bool freeNative)
+    public static unsafe void FreeNative(nint nativeValue, bool freeNative)
     {
         if(nativeValue == nint.Zero)
             return;
 
         var aiMaterial = MemoryHelper.Read<AiMaterial>(nativeValue);
 
-        if(aiMaterial.NumAllocated > 0 && aiMaterial.Properties != nint.Zero)
-            MemoryHelper.FreeNativeArray<AiMaterialProperty>(aiMaterial.Properties, (int) aiMaterial.NumProperties, MaterialProperty.FreeNative, true);
+        if(aiMaterial.MNumAllocated > 0 && aiMaterial.MProperties != null)
+            MemoryHelper.FreeNativeArray(aiMaterial.MProperties, (int) aiMaterial.MNumProperties, MaterialProperty.FreeNative);
 
         if(freeNative)
             MemoryHelper.FreeMemory(nativeValue);
@@ -1544,7 +1543,7 @@ public sealed class Material : IMarshalable<Material, AiMaterial>
         /// <summary>
         /// Gets if the material has a roughness map texture in the first texture index.
         /// </summary>
-        public bool HasTextureRoughness => m_parent.HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.Roughness, 0);
+        public bool HasTextureRoughness => m_parent.HasProperty(AiMatKeys.TEXTURE_BASE, TextureType.DiffuseRoughness, 0);
 
         /// <summary>
         /// Gets or sets the roughness map texture properties in the first texture index.
@@ -1553,13 +1552,13 @@ public sealed class Material : IMarshalable<Material, AiMaterial>
         {
             get
             {
-                m_parent.GetMaterialTexture(TextureType.Roughness, 0, out var tex);
+                m_parent.GetMaterialTexture(TextureType.DiffuseRoughness, 0, out var tex);
 
                 return tex;
             }
             set
             {
-                if(value is {TextureIndex: 0, TextureType: TextureType.Roughness})
+                if(value is {TextureIndex: 0, TextureType: TextureType.DiffuseRoughness})
                     m_parent.AddMaterialTexture(value);
             }
         }

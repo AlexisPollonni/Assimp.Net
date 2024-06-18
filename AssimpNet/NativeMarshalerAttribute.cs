@@ -20,9 +20,6 @@
 * THE SOFTWARE.
 */
 
-using System;
-using Assimp.Unmanaged;
-
 namespace Assimp;
 
 /// <summary>

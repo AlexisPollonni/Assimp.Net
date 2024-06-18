@@ -20,9 +20,6 @@
 * THE SOFTWARE.
 */
 
-using System.Collections.Generic;
-using Assimp.Unmanaged;
-
 namespace Assimp;
 
 /// <summary>
@@ -115,50 +112,50 @@ public sealed class Animation : IMarshalable<Animation, AiAnimation>
     /// </summary>
     /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
     /// <param name="nativeValue">Output native value</param>
-    void IMarshalable<Animation, AiAnimation>.ToNative(nint thisPtr, out AiAnimation nativeValue)
+    unsafe void IMarshalable<Animation, AiAnimation>.ToNative(nint thisPtr, out AiAnimation nativeValue)
     {
-        nativeValue.Name = new(Name);
-        nativeValue.Duration = DurationInTicks;
-        nativeValue.TicksPerSecond = TicksPerSecond;
-        nativeValue.NumChannels = (uint) NodeAnimationChannelCount;
-        nativeValue.NumMeshChannels = (uint) MeshAnimationChannelCount;
-        nativeValue.NumMeshMorphChannels = (uint) MeshMorphAnimationChannelCount;
-        nativeValue.Channels = nint.Zero;
-        nativeValue.MeshChannels = nint.Zero;
-        nativeValue.MeshMorphChannels = nint.Zero;
+        nativeValue.MName = new(Name);
+        nativeValue.MDuration = DurationInTicks;
+        nativeValue.MTicksPerSecond = TicksPerSecond;
+        nativeValue.MNumChannels = (uint) NodeAnimationChannelCount;
+        nativeValue.MNumMeshChannels = (uint) MeshAnimationChannelCount;
+        nativeValue.MNumMorphMeshChannels = (uint) MeshMorphAnimationChannelCount;
+        nativeValue.MChannels = null;
+        nativeValue.MMeshChannels = null;
+        nativeValue.MMorphMeshChannels = null;
 
-        if(nativeValue.NumChannels > 0)
-            nativeValue.Channels = MemoryHelper.ToNativeArray<NodeAnimationChannel, AiNodeAnim>(NodeAnimationChannels.ToArray(), true);
+        if(nativeValue.MNumChannels > 0)
+            nativeValue.MChannels = MemoryHelper.ToNativeArrayOfPtr<NodeAnimationChannel, AiNodeAnim>(NodeAnimationChannels.ToArray());
 
-        if(nativeValue.NumMeshChannels > 0)
-            nativeValue.MeshChannels = MemoryHelper.ToNativeArray<MeshAnimationChannel, AiMeshAnim>(MeshAnimationChannels.ToArray(), true);
+        if(nativeValue.MNumMeshChannels > 0)
+            nativeValue.MMeshChannels = MemoryHelper.ToNativeArrayOfPtr<MeshAnimationChannel, AiMeshAnim>(MeshAnimationChannels.ToArray());
 
-        if(nativeValue.NumMeshMorphChannels > 0)
-            nativeValue.MeshMorphChannels = MemoryHelper.ToNativeArray<MeshMorphAnimationChannel, AiMeshMorphAnim>(MeshMorphAnimationChannels.ToArray(), true);
+        if(nativeValue.MNumMorphMeshChannels > 0)
+            nativeValue.MMorphMeshChannels = MemoryHelper.ToNativeArrayOfPtr<MeshMorphAnimationChannel, AiMeshMorphAnim>(MeshMorphAnimationChannels.ToArray());
     }
 
     /// <summary>
     /// Reads the unmanaged data from the native value.
     /// </summary>
     /// <param name="nativeValue">Input native value</param>
-    void IMarshalable<Animation, AiAnimation>.FromNative(in AiAnimation nativeValue)
+    unsafe void IMarshalable<Animation, AiAnimation>.FromNative(in AiAnimation nativeValue)
     {
         NodeAnimationChannels.Clear();
         MeshAnimationChannels.Clear();
         MeshMorphAnimationChannels.Clear();
 
-        Name = AiString.GetString(nativeValue.Name); //Avoid struct copy
-        DurationInTicks = nativeValue.Duration;
-        TicksPerSecond = nativeValue.TicksPerSecond;
+        Name = nativeValue.MName; //Avoid struct copy
+        DurationInTicks = nativeValue.MDuration;
+        TicksPerSecond = nativeValue.MTicksPerSecond;
 
-        if(nativeValue.NumChannels > 0 && nativeValue.Channels != nint.Zero)
-            NodeAnimationChannels.AddRange(MemoryHelper.FromNativeArray<NodeAnimationChannel, AiNodeAnim>(nativeValue.Channels, (int) nativeValue.NumChannels, true));
+        if(nativeValue.MNumChannels > 0 && nativeValue.MChannels != null)
+            NodeAnimationChannels.AddRange(MemoryHelper.FromNativeArray<NodeAnimationChannel, AiNodeAnim>((nint)nativeValue.MChannels, (int) nativeValue.MNumChannels, true));
 
-        if(nativeValue.NumMeshChannels > 0 && nativeValue.MeshChannels != nint.Zero)
-            MeshAnimationChannels.AddRange(MemoryHelper.FromNativeArray<MeshAnimationChannel, AiMeshAnim>(nativeValue.MeshChannels, (int) nativeValue.NumMeshChannels, true));
+        if(nativeValue.MNumMeshChannels > 0 && nativeValue.MMeshChannels != null)
+            MeshAnimationChannels.AddRange(MemoryHelper.FromNativeArray<MeshAnimationChannel, AiMeshAnim>((nint)nativeValue.MMeshChannels, (int) nativeValue.MNumMeshChannels, true));
 
-        if(nativeValue.NumMeshMorphChannels > 0 && nativeValue.MeshMorphChannels != nint.Zero)
-            MeshMorphAnimationChannels.AddRange(MemoryHelper.FromNativeArray<MeshMorphAnimationChannel, AiMeshMorphAnim>(nativeValue.MeshMorphChannels, (int) nativeValue.NumMeshMorphChannels, true));
+        if(nativeValue.MNumMorphMeshChannels > 0 && nativeValue.MMorphMeshChannels != null)
+            MeshMorphAnimationChannels.AddRange(MemoryHelper.FromNativeArray<MeshMorphAnimationChannel, AiMeshMorphAnim>((nint)nativeValue.MMorphMeshChannels, (int) nativeValue.MNumMorphMeshChannels, true));
     }
 
 
@@ -167,21 +164,21 @@ public sealed class Animation : IMarshalable<Animation, AiAnimation>
     /// </summary>
     /// <param name="nativeValue">Native value to free</param>
     /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-    public static void FreeNative(nint nativeValue, bool freeNative)
+    public static unsafe void FreeNative(nint nativeValue, bool freeNative)
     {
         if(nativeValue == nint.Zero)
             return;
 
         var aiAnimation = MemoryHelper.Read<AiAnimation>(nativeValue);
 
-        if(aiAnimation.NumChannels > 0 && aiAnimation.Channels != nint.Zero)
-            MemoryHelper.FreeNativeArray<AiNodeAnim>(aiAnimation.Channels, (int) aiAnimation.NumChannels, NodeAnimationChannel.FreeNative, true);
+        if(aiAnimation.MNumChannels > 0 && aiAnimation.MChannels != null)
+            MemoryHelper.FreeNativeArray(aiAnimation.MChannels, (int) aiAnimation.MNumChannels, NodeAnimationChannel.FreeNative);
 
-        if(aiAnimation.NumMeshChannels > 0 && aiAnimation.MeshChannels != nint.Zero)
-            MemoryHelper.FreeNativeArray<AiMeshAnim>(aiAnimation.MeshChannels, (int) aiAnimation.NumMeshChannels, MeshAnimationChannel.FreeNative, true);
+        if(aiAnimation.MNumMeshChannels > 0 && aiAnimation.MMeshChannels != null)
+            MemoryHelper.FreeNativeArray(aiAnimation.MMeshChannels, (int) aiAnimation.MNumMeshChannels, MeshAnimationChannel.FreeNative);
 
-        if(aiAnimation.NumMeshMorphChannels > 0 && aiAnimation.MeshMorphChannels != nint.Zero)
-            MemoryHelper.FreeNativeArray<AiMeshMorphAnim>(aiAnimation.MeshMorphChannels, (int) aiAnimation.NumMeshMorphChannels, MeshMorphAnimationChannel.FreeNative, true);
+        if(aiAnimation.MNumMorphMeshChannels > 0 && aiAnimation.MMorphMeshChannels != null)
+            MemoryHelper.FreeNativeArray(aiAnimation.MMorphMeshChannels, (int) aiAnimation.MNumMorphMeshChannels, MeshMorphAnimationChannel.FreeNative);
 
         if(freeNative)
             MemoryHelper.FreeMemory(nativeValue);

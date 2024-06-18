@@ -1,27 +1,27 @@
 ﻿/*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using System;
-using Assimp.Unmanaged;
+using System.Numerics;
+using Silk.NET.Assimp;
 
 namespace Assimp;
 
@@ -86,19 +86,19 @@ public sealed class Light : IMarshalable<Light, AiLight>
     /// transformation of the node corresponding to the light. This is undefined for
     /// directional lights.
     /// </summary>
-    public Vector3D Position { get; set; }
+    public Vector3 Position { get; set; }
 
     /// <summary>
     /// Gets or sets the direction of the light source in space, relative to the transformation
     /// of the node corresponding to the light. This is undefined for point lights.
     /// </summary>
-    public Vector3D Direction { get; set; }
+    public Vector3 Direction { get; set; }
 
     /// <summary>
     /// Gets or sets the up vector of the light source in space, relative to the transformation of the node corresponding to the light.
     /// This is undefined for point lights.
     /// </summary>
-    public Vector3D Up { get; set; }
+    public Vector3 Up { get; set; }
 
     /// <summary>
     /// Gets or sets the diffuse color of the light source.  The diffuse light color is multiplied with
@@ -121,7 +121,7 @@ public sealed class Light : IMarshalable<Light, AiLight>
     /// <summary>
     /// Gets or sets the Width (X) and Height (Y) of the area that represents an <see cref="LightSourceType.Area"/> light.
     /// </summary>
-    public Vector2D AreaSize { get; set; }
+    public Vector2 AreaSize { get; set; }
 
     /// <summary>
     /// Constructs a new instance of the <see cref="Light"/> class.
@@ -151,20 +151,20 @@ public sealed class Light : IMarshalable<Light, AiLight>
     /// <param name="nativeValue">Output native value</param>
     void IMarshalable<Light, AiLight>.ToNative(nint thisPtr, out AiLight nativeValue)
     {
-        nativeValue.Name = new(Name);
-        nativeValue.Type = LightType;
-        nativeValue.AngleInnerCone = AngleInnerCone;
-        nativeValue.AngleOuterCone = AngleOuterCone;
-        nativeValue.AttenuationConstant = AttenuationConstant;
-        nativeValue.AttenuationLinear = AttenuationLinear;
-        nativeValue.AttenuationQuadratic = AttenuationQuadratic;
-        nativeValue.ColorAmbient = ColorAmbient;
-        nativeValue.ColorDiffuse = ColorDiffuse;
-        nativeValue.ColorSpecular = ColorSpecular;
-        nativeValue.Direction = Direction;
-        nativeValue.Up = Up;
-        nativeValue.Position = Position;
-        nativeValue.AreaSize = AreaSize;
+        nativeValue.MName = new(Name);
+        nativeValue.MType = LightType;
+        nativeValue.MAngleInnerCone = AngleInnerCone;
+        nativeValue.MAngleOuterCone = AngleOuterCone;
+        nativeValue.MAttenuationConstant = AttenuationConstant;
+        nativeValue.MAttenuationLinear = AttenuationLinear;
+        nativeValue.MAttenuationQuadratic = AttenuationQuadratic;
+        nativeValue.MColorAmbient = ColorAmbient;
+        nativeValue.MColorDiffuse = ColorDiffuse;
+        nativeValue.MColorSpecular = ColorSpecular;
+        nativeValue.MDirection = Direction;
+        nativeValue.MUp = Up;
+        nativeValue.MPosition = Position;
+        nativeValue.MSize = AreaSize;
     }
 
     /// <summary>
@@ -173,20 +173,20 @@ public sealed class Light : IMarshalable<Light, AiLight>
     /// <param name="nativeValue">Input native value</param>
     void IMarshalable<Light, AiLight>.FromNative(in AiLight nativeValue)
     {
-        Name = AiString.GetString(nativeValue.Name); //Avoid struct copy
-        LightType = nativeValue.Type;
-        AngleInnerCone = nativeValue.AngleInnerCone;
-        AngleOuterCone = nativeValue.AngleOuterCone;
-        AttenuationConstant = nativeValue.AttenuationConstant;
-        AttenuationLinear = nativeValue.AttenuationLinear;
-        AttenuationQuadratic = nativeValue.AttenuationQuadratic;
-        Position = nativeValue.Position;
-        Direction = nativeValue.Direction;
-        Up = nativeValue.Up;
-        ColorDiffuse = nativeValue.ColorDiffuse;
-        ColorSpecular = nativeValue.ColorSpecular;
-        ColorAmbient = nativeValue.ColorAmbient;
-        AreaSize = nativeValue.AreaSize;
+        Name = nativeValue.MName; //Avoid struct copy
+        LightType = nativeValue.MType;
+        AngleInnerCone = nativeValue.MAngleInnerCone;
+        AngleOuterCone = nativeValue.MAngleOuterCone;
+        AttenuationConstant = nativeValue.MAttenuationConstant;
+        AttenuationLinear = nativeValue.MAttenuationLinear;
+        AttenuationQuadratic = nativeValue.MAttenuationQuadratic;
+        Position = nativeValue.MPosition;
+        Direction = nativeValue.MDirection;
+        Up = nativeValue.MUp;
+        ColorDiffuse = nativeValue.MColorDiffuse;
+        ColorSpecular = nativeValue.MColorSpecular;
+        ColorAmbient = nativeValue.MColorAmbient;
+        AreaSize = nativeValue.MSize;
     }
 
     /// <summary>

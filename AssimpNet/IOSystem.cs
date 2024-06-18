@@ -1,29 +1,27 @@
 /*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using Assimp.Unmanaged;
+using Silk.NET.Assimp;
+using Silk.NET.Core.Native;
 
 namespace Assimp;
 
@@ -49,7 +47,7 @@ public abstract class IOSystem : IDisposable
   /// </summary>
   public int OpenFileCount => m_openedFiles.Count;
 
-  internal nint AiFileIO { get; private set; }
+  internal unsafe AiFileIO* AiFileIO { get; private set; }
 
   /// <summary>
   /// Constructs a new IOSystem.
@@ -61,7 +59,7 @@ public abstract class IOSystem : IDisposable
   /// </summary>
   /// <param name="initialize">True if initialize should be immediately called with the default callbacks. Set this to false
   /// if your subclass requires a different way to setup the function pointers.</param>
-  protected IOSystem(bool initialize = true)
+  protected unsafe IOSystem(bool initialize = true)
   {
     if (initialize)
       Initialize(OnAiFileOpenProc, OnAiFileCloseProc);
@@ -75,18 +73,18 @@ public abstract class IOSystem : IDisposable
   /// <param name="fileOpenProc">Handles open file requests.</param>
   /// <param name="fileCloseProc">Handles close file requests.</param>
   /// <param name="userData">Additional user data, if any.</param>
-  protected void Initialize(AiFileOpenProc fileOpenProc, AiFileCloseProc fileCloseProc, nint userData = default)
+  protected unsafe void Initialize(AiFileOpenProc fileOpenProc, AiFileCloseProc fileCloseProc, byte* userData = default)
   {
     m_openProc = fileOpenProc;
     m_closeProc = fileCloseProc;
 
     AiFileIO fileIO;
-    fileIO.OpenProc = Marshal.GetFunctionPointerForDelegate(fileOpenProc);
-    fileIO.CloseProc = Marshal.GetFunctionPointerForDelegate(fileCloseProc);
+    fileIO.OpenProc = fileOpenProc;
+    fileIO.CloseProc = fileCloseProc;
     fileIO.UserData = userData;
 
-    AiFileIO = MemoryHelper.AllocateMemory(MemoryHelper.SizeOf<AiFileIO>());
-    Marshal.StructureToPtr(fileIO, AiFileIO, false);
+    AiFileIO = (AiFileIO*)MemoryHelper.AllocateMemory(MemoryHelper.SizeOf<AiFileIO>());
+    Marshal.StructureToPtr(fileIO, (nint)AiFileIO, false);
   }
 
   /// <summary>
@@ -109,14 +107,14 @@ public abstract class IOSystem : IDisposable
   /// Closes a stream that is owned by this IOSystem.
   /// </summary>
   /// <param name="stream">Stream to close</param>
-  public virtual void CloseFile(IOStream stream)
+  public virtual unsafe void CloseFile(IOStream stream)
   {
     if (stream == null)
       return;
 
-    if (m_openedFiles.ContainsKey(stream.AiFile))
+    if (m_openedFiles.ContainsKey((nint)stream.AiFile))
     {
-      m_openedFiles.Remove(stream.AiFile);
+      m_openedFiles.Remove((nint)stream.AiFile);
 
       if (!stream.IsDisposed)
         stream.Close();
@@ -149,14 +147,14 @@ public abstract class IOSystem : IDisposable
   /// Releases unmanaged and - optionally - managed resources.
   /// </summary>
   /// <param name="disposing">True to release both managed and unmanaged resources; False to release only unmanaged resources.</param>
-  protected virtual void Dispose(bool disposing)
+  protected virtual unsafe void Dispose(bool disposing)
   {
     if (!IsDisposed)
     {
-      if (AiFileIO != nint.Zero)
+      if (AiFileIO != null)
       {
         MemoryHelper.FreeMemory(AiFileIO);
-        AiFileIO = nint.Zero;
+        AiFileIO = null;
       }
 
       if (disposing)
@@ -177,21 +175,21 @@ public abstract class IOSystem : IDisposable
   /// <param name="pathToFile"></param>
   /// <param name="mode"></param>
   /// <returns></returns>
-  protected nint OnAiFileOpenProc(nint fileIO, string pathToFile, string mode)
+  protected unsafe AiFile* OnAiFileOpenProc(AiFileIO* fileIO, byte* pathToFile, byte* mode)
   {
     if (AiFileIO != fileIO)
-      return nint.Zero;
+      return null;
 
-    var fileMode = ConvertFileMode(mode);
-    var iostream = OpenFile(pathToFile, fileMode);
-    var aiFilePtr = nint.Zero;
+    var fileMode = ConvertFileMode(SilkMarshal.PtrToString((nint)mode));
+    var iostream = OpenFile(SilkMarshal.PtrToString((nint)pathToFile), fileMode);
+    AiFile* aiFilePtr = null;
 
     if (iostream != null)
     {
       if (iostream.IsValid)
       {
         aiFilePtr = iostream.AiFile;
-        m_openedFiles.Add(aiFilePtr, iostream);
+        m_openedFiles.Add((nint)aiFilePtr, iostream);
       }
       else
       {
@@ -207,13 +205,13 @@ public abstract class IOSystem : IDisposable
   /// </summary>
   /// <param name="fileIO"></param>
   /// <param name="file"></param>
-  protected void OnAiFileCloseProc(nint fileIO, nint file)
+  protected unsafe void OnAiFileCloseProc(AiFileIO* fileIO, AiFile* file)
   {
     if (AiFileIO != fileIO)
       return;
 
     IOStream iostream;
-    if (m_openedFiles.TryGetValue(file, out iostream))
+    if (m_openedFiles.TryGetValue((nint)file, out iostream))
     {
       CloseFile(iostream);
     }

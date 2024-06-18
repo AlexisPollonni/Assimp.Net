@@ -1,28 +1,27 @@
 ﻿/*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using System.Collections.Generic;
 using System.Diagnostics;
-using Assimp.Unmanaged;
+using System.Linq;
 
 namespace Assimp;
 
@@ -68,26 +67,26 @@ public sealed class MeshMorphKey : IMarshalable<MeshMorphKey, AiMeshMorphKey>
     /// </summary>
     /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
     /// <param name="nativeValue">Output native value</param>
-    void IMarshalable<MeshMorphKey, AiMeshMorphKey>.ToNative(nint thisPtr, out AiMeshMorphKey nativeValue)
+    unsafe void IMarshalable<MeshMorphKey, AiMeshMorphKey>.ToNative(nint thisPtr, out AiMeshMorphKey nativeValue)
     {
-        nativeValue.Time = Time;
-        nativeValue.NumValuesAndWeights = (uint) Weights.Count;
-        nativeValue.Values = nint.Zero;
-        nativeValue.Weights = nint.Zero;
+        nativeValue.MTime = Time;
+        nativeValue.MNumValuesAndWeights = (uint) Weights.Count;
+        nativeValue.MValues = null;
+        nativeValue.MWeights = null;
 
         Debug.Assert(Weights.Count == Values.Count);
         if(Weights.Count == Values.Count)
         {
             if(Weights.Count > 0)
             {
-                nativeValue.Values = MemoryHelper.ToNativeArray(Values.ToArray());
-                nativeValue.Weights = MemoryHelper.ToNativeArray(Weights.ToArray());
+                nativeValue.MValues = MemoryHelper.ToNativeArray<uint>(Values.Select(i => (uint)i).ToArray());
+                nativeValue.MWeights = MemoryHelper.ToNativeArray<double>(Weights.ToArray());
             }
         }
         else
         {
             //If both lists are not the same length then do not write anything out
-            nativeValue.NumValuesAndWeights = 0;
+            nativeValue.MNumValuesAndWeights = 0;
         }
     }
 
@@ -95,20 +94,20 @@ public sealed class MeshMorphKey : IMarshalable<MeshMorphKey, AiMeshMorphKey>
     /// Reads the unmanaged data from the native value.
     /// </summary>
     /// <param name="nativeValue">Input native value</param>
-    void IMarshalable<MeshMorphKey, AiMeshMorphKey>.FromNative(in AiMeshMorphKey nativeValue)
+    unsafe void IMarshalable<MeshMorphKey, AiMeshMorphKey>.FromNative(in AiMeshMorphKey nativeValue)
     {
-        Time = nativeValue.Time;
+        Time = nativeValue.MTime;
 
         Values.Clear();
         Weights.Clear();
 
-        if(nativeValue.NumValuesAndWeights > 0)
+        if(nativeValue.MNumValuesAndWeights > 0)
         {
-            if(nativeValue.Values != nint.Zero)
-                Values.AddRange(MemoryHelper.FromNativeArray<int>(nativeValue.Values, (int) nativeValue.NumValuesAndWeights));
+            if (nativeValue.MValues != null)
+                Values.AddRange(MemoryHelper.FromNativeArray(nativeValue.MValues, (int) nativeValue.MNumValuesAndWeights).Select(i => (int)i));
 
-            if(nativeValue.Weights != nint.Zero)
-                Weights.AddRange(MemoryHelper.FromNativeArray<double>(nativeValue.Weights, (int) nativeValue.NumValuesAndWeights));
+            if(nativeValue.MWeights != null)
+                Weights.AddRange(MemoryHelper.FromNativeArray(nativeValue.MWeights, (int) nativeValue.MNumValuesAndWeights));
         }
     }
 
@@ -117,20 +116,20 @@ public sealed class MeshMorphKey : IMarshalable<MeshMorphKey, AiMeshMorphKey>
     /// </summary>
     /// <param name="nativeValue">Native value to free</param>
     /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-    public static void FreeNative(nint nativeValue, bool freeNative)
+    public static unsafe void FreeNative(nint nativeValue, bool freeNative)
     {
         if(nativeValue == nint.Zero)
             return;
 
         var aiMeshMorphKey = MemoryHelper.Read<AiMeshMorphKey>(nativeValue);
 
-        if(aiMeshMorphKey.NumValuesAndWeights > 0)
+        if(aiMeshMorphKey.MNumValuesAndWeights > 0)
         {
-            if(aiMeshMorphKey.Values != nint.Zero)
-                MemoryHelper.FreeMemory(aiMeshMorphKey.Values);
+            if(aiMeshMorphKey.MValues != null)
+                MemoryHelper.FreeMemory(aiMeshMorphKey.MValues);
 
-            if(aiMeshMorphKey.Weights != nint.Zero)
-                MemoryHelper.FreeMemory(aiMeshMorphKey.Weights);
+            if(aiMeshMorphKey.MWeights != null)
+                MemoryHelper.FreeMemory(aiMeshMorphKey.MWeights);
         }
 
         if(freeNative)

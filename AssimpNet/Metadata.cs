@@ -1,29 +1,29 @@
 ﻿/*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using Assimp.Unmanaged;
+using System.Numerics;
+using Silk.NET.Assimp;
+using Silk.NET.Maths;
 
 namespace Assimp;
 
@@ -49,151 +49,163 @@ public sealed class Metadata : Dictionary<string, Metadata.Entry>, IMarshalable<
     /// </summary>
     /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
     /// <param name="nativeValue">Output native value</param>
-    void IMarshalable<Metadata, AiMetadata>.ToNative(nint thisPtr, out AiMetadata nativeValue)
+    unsafe void IMarshalable<Metadata, AiMetadata>.ToNative(nint thisPtr, out AiMetadata nativeValue)
     {
         nativeValue = new()
         {
-            NumProperties = (uint) Count
+            MNumProperties = (uint) Count
         };
 
-        var keys = new AiString[Count];
+        var keys = new AssimpString[Count];
         var entries = new AiMetadataEntry[Count];
         var index = 0;
         foreach(var kv in this)
         {
             var entry = new AiMetadataEntry
             {
-                DataType = kv.Value.DataType
+                MType = kv.Value.DataType
             };
 
+            nint mData = 0;
             switch(kv.Value.DataType)
             {
-                case MetaDataType.Bool:
-                    entry.Data = MemoryHelper.AllocateMemory(sizeof(bool));
+                case MetadataType.Bool:
+                    mData = MemoryHelper.AllocateMemory(sizeof(bool));
                     var boolValue = (bool) kv.Value.Data;
-                    MemoryHelper.Write(entry.Data, boolValue);
+                    MemoryHelper.Write(mData, boolValue);
                     break;
-                case MetaDataType.Float:
-                    entry.Data = MemoryHelper.AllocateMemory(sizeof(float));
+                case MetadataType.Float:
+                    mData = MemoryHelper.AllocateMemory(sizeof(float));
                     var floatValue = (float) kv.Value.Data;
-                    MemoryHelper.Write(entry.Data, floatValue);
+                    MemoryHelper.Write(mData, floatValue);
                     break;
-                case MetaDataType.Double:
-                    entry.Data = MemoryHelper.AllocateMemory(sizeof(double));
+                case MetadataType.Double:
+                    mData = MemoryHelper.AllocateMemory(sizeof(double));
                     var doubleValue = (double) kv.Value.Data;
-                    MemoryHelper.Write(entry.Data, doubleValue);
+                    MemoryHelper.Write(mData, doubleValue);
                     break;
-                case MetaDataType.Int32:
-                    entry.Data = MemoryHelper.AllocateMemory(sizeof(int));
+                case MetadataType.Int32:
+                    mData = MemoryHelper.AllocateMemory(sizeof(int));
                     var intValue = (int) kv.Value.Data;
-                    MemoryHelper.Write(entry.Data, intValue);
+                    MemoryHelper.Write(mData, intValue);
                     break;
-                case MetaDataType.String:
-                    entry.Data = MemoryHelper.AllocateMemory(MemoryHelper.SizeOf<AiString>());
-                    var aiStringValue = new AiString(kv.Value.Data as string);
-                    MemoryHelper.Write(entry.Data, aiStringValue);
+                case MetadataType.Aistring:
+                    mData = MemoryHelper.AllocateMemory(MemoryHelper.SizeOf<AssimpString>());
+                    var aiStringValue = new AssimpString(kv.Value.Data as string);
+                    MemoryHelper.Write(mData, aiStringValue);
                     break;
-                case MetaDataType.UInt64:
-                    entry.Data = MemoryHelper.AllocateMemory(sizeof(ulong));
+                case MetadataType.Uint64:
+                    mData = MemoryHelper.AllocateMemory(sizeof(ulong));
                     var uint64Value = (ulong) kv.Value.Data;
-                    MemoryHelper.Write(entry.Data, uint64Value);
+                    MemoryHelper.Write(mData, uint64Value);
                     break;
-                case MetaDataType.Vector3D:
-                    entry.Data = MemoryHelper.AllocateMemory(MemoryHelper.SizeOf<Vector3D>());
-                    var vectorValue = (Vector3D) kv.Value.Data;
-                    MemoryHelper.Write(entry.Data, vectorValue);
+                case MetadataType.Aivector3D:
+                    mData = MemoryHelper.AllocateMemory(MemoryHelper.SizeOf<Vector3>());
+                    var vectorValue = (Vector3) kv.Value.Data;
+                    MemoryHelper.Write(mData, vectorValue);
                     break;
             }
+
+            entry.MData = (void*)mData;
 
             keys[index] = new(kv.Key);
             entries[index] = entry;
             index++;
         }
 
-        nativeValue.keys = MemoryHelper.ToNativeArray(keys);
-        nativeValue.Values = MemoryHelper.ToNativeArray(entries);
+        nativeValue.MKeys = MemoryHelper.ToNativeArray<AssimpString>(keys);
+        nativeValue.MValues = MemoryHelper.ToNativeArray<AiMetadataEntry>(entries);
     }
 
     /// <summary>
     /// Reads the unmanaged data from the native value.
     /// </summary>
     /// <param name="nativeValue">Input native value</param>
-    void IMarshalable<Metadata, AiMetadata>.FromNative(in AiMetadata nativeValue)
+    unsafe void IMarshalable<Metadata, AiMetadata>.FromNative(in AiMetadata nativeValue)
     {
         Clear();
 
-        if(nativeValue.NumProperties == 0 || nativeValue.keys == nint.Zero || nativeValue.Values == nint.Zero)
+        if(nativeValue.MNumProperties == 0 || nativeValue.MKeys == null || nativeValue.MValues == null)
             return;
 
-        var keys = MemoryHelper.FromNativeArray<AiString>(nativeValue.keys, (int) nativeValue.NumProperties);
-        var entries = MemoryHelper.FromNativeArray<AiMetadataEntry>(nativeValue.Values, (int) nativeValue.NumProperties);
+        var keys = MemoryHelper.FromNativeArray(nativeValue.MKeys, (int) nativeValue.MNumProperties);
+        var entries = MemoryHelper.FromNativeArray(nativeValue.MValues, (int) nativeValue.MNumProperties);
 
-        for(var i = 0; i < nativeValue.NumProperties; i++)
+        for(var i = 0; i < nativeValue.MNumProperties; i++)
         {
-            var key = keys[i].GetString();
+            var key = keys[i].AsString;
             var entry = entries[i];
 
-            if(string.IsNullOrEmpty(key) || entry.Data == nint.Zero)
+            if(string.IsNullOrEmpty(key) || entry.MData == null)
                 continue;
 
             object data = null;
-            switch(entry.DataType)
+            var mData = (nint)entry.MData;
+            switch(entry.MType)
             {
-                case MetaDataType.Bool:
-                    data = MemoryHelper.Read<bool>(entry.Data);
+                case MetadataType.Bool:
+                    data = MemoryHelper.Read<bool>(mData);
                     break;
-                case MetaDataType.Float:
-                    data = MemoryHelper.Read<float>(entry.Data);
+                case MetadataType.Float:
+                    data = MemoryHelper.Read<float>(mData);
                     break;
-                case MetaDataType.Double:
-                    data = MemoryHelper.Read<double>(entry.Data);
+                case MetadataType.Double:
+                    data = MemoryHelper.Read<double>(mData);
                     break;
-                case MetaDataType.Int32:
-                    data = MemoryHelper.Read<int>(entry.Data);
+                case MetadataType.Int32:
+                    data = MemoryHelper.Read<int>(mData);
                     break;
-                case MetaDataType.String:
-                    var aiString = MemoryHelper.Read<AiString>(entry.Data);
-                    data = aiString.GetString();
+                case MetadataType.Int64:
+                    data = MemoryHelper.Read<long>(mData);
                     break;
-                case MetaDataType.UInt64:
-                    data = MemoryHelper.Read<ulong>(entry.Data);
+                case MetadataType.Uint32:
+                    data = MemoryHelper.Read<uint>(mData);
                     break;
-                case MetaDataType.Vector3D:
-                    data = MemoryHelper.Read<Vector3D>(entry.Data);
+                case MetadataType.Uint64:
+                    data = MemoryHelper.Read<ulong>(mData);
                     break;
+                case MetadataType.Aivector3D:
+                    data = MemoryHelper.Read<Vector3>(mData);
+                    break;
+                case MetadataType.Aistring:
+                    var aiString = MemoryHelper.Read<AssimpString>(mData);
+                    data = aiString.AsString;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
 
             if(data != null)
-                Add(key, new(entry.DataType, data));
+                Add(key, new(entry.MType, data));
         }
     }
-
+    
     /// <summary>
     /// Frees unmanaged memory created by <see cref="IMarshalable{Metadata, AiMetadata}.ToNative"/>.
     /// </summary>
     /// <param name="nativeValue">Native value to free</param>
     /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-    public static void FreeNative(nint nativeValue, bool freeNative)
+    public static unsafe void FreeNative(nint nativeValue, bool freeNative)
     {
         if(nativeValue == nint.Zero)
             return;
 
         var aiMetadata = MemoryHelper.MarshalStructure<AiMetadata>(nativeValue);
 
-        if(aiMetadata.keys != nint.Zero)
-            MemoryHelper.FreeMemory(aiMetadata.keys);
+        if(aiMetadata.MKeys != null)
+            MemoryHelper.FreeMemory(aiMetadata.MKeys);
 
-        if(aiMetadata.Values != nint.Zero)
+        if(aiMetadata.MValues != null)
         {
-            var entries = MemoryHelper.FromNativeArray<AiMetadataEntry>(aiMetadata.Values, (int) aiMetadata.NumProperties);
+            var entries = MemoryHelper.FromNativeArray(aiMetadata.MValues, (int) aiMetadata.MNumProperties);
 
             foreach(var entry in entries)
             {
-                if(entry.Data != nint.Zero)
-                    MemoryHelper.FreeMemory(entry.Data);
+                if(entry.MData != null)
+                    MemoryHelper.FreeMemory((nint)entry.MData);
             }
 
-            MemoryHelper.FreeMemory(aiMetadata.Values);
+            MemoryHelper.FreeMemory(aiMetadata.MValues);
         }
 
         if(freeNative)
@@ -210,7 +222,7 @@ public sealed class Metadata : Dictionary<string, Metadata.Entry>, IMarshalable<
         /// <summary>
         /// Gets the type of metadata.
         /// </summary>
-        public MetaDataType DataType { get; }
+        public MetadataType DataType { get; }
 
         /// <summary>
         /// Gets the metadata data stored in this entry.
@@ -222,7 +234,7 @@ public sealed class Metadata : Dictionary<string, Metadata.Entry>, IMarshalable<
         /// </summary>
         /// <param name="dataType">Type of the data.</param>
         /// <param name="data">The data.</param>
-        public Entry(MetaDataType dataType, object data)
+        public Entry(MetadataType dataType, object data)
         {
             DataType = dataType;
             Data = data;
@@ -259,13 +271,13 @@ public sealed class Metadata : Dictionary<string, Metadata.Entry>, IMarshalable<
         {
             var dataTypeType = DataType switch
             {
-                MetaDataType.Bool => typeof(bool),
-                MetaDataType.Float => typeof(float),
-                MetaDataType.Double => typeof(double),
-                MetaDataType.Int32 => typeof(int),
-                MetaDataType.String => typeof(string),
-                MetaDataType.UInt64 => typeof(ulong),
-                MetaDataType.Vector3D => typeof(Vector3D),
+                MetadataType.Bool => typeof(bool),
+                MetadataType.Float => typeof(float),
+                MetadataType.Double => typeof(double),
+                MetadataType.Int32 => typeof(int),
+                MetadataType.Aistring => typeof(string),
+                MetadataType.Uint64 => typeof(ulong),
+                MetadataType.Aivector3D => typeof(Vector3D),
                 _ => null
             };
 

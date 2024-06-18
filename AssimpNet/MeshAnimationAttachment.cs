@@ -1,27 +1,26 @@
 ﻿/*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using System.Collections.Generic;
-using Assimp.Unmanaged;
+using System.Numerics;
 
 namespace Assimp;
 
@@ -56,7 +55,7 @@ public sealed class MeshAnimationAttachment : IMarshalable<MeshAnimationAttachme
     /// <summary>
     /// Gets the vertex position list.
     /// </summary>
-    public List<Vector3D> Vertices { get; }
+    public List<Vector3> Vertices { get; }
 
     /// <summary>
     /// Checks whether the attachment mesh overrides the vertex normals of
@@ -67,7 +66,7 @@ public sealed class MeshAnimationAttachment : IMarshalable<MeshAnimationAttachme
     /// <summary>
     /// Gets the vertex normal list.
     /// </summary>
-    public List<Vector3D> Normals { get; }
+    public List<Vector3> Normals { get; }
 
     /// <summary>
     /// Checks whether the attachment mesh overrides the vertex
@@ -78,12 +77,12 @@ public sealed class MeshAnimationAttachment : IMarshalable<MeshAnimationAttachme
     /// <summary>
     /// Gets the vertex tangent list.
     /// </summary>
-    public List<Vector3D> Tangents { get; }
+    public List<Vector3> Tangents { get; }
 
     /// <summary>
     /// Gets the vertex bitangent list.
     /// </summary>
-    public List<Vector3D> BiTangents { get; }
+    public List<Vector3> BiTangents { get; }
 
     /// <summary>
     /// Gets the number of valid vertex color channels contained in the
@@ -135,7 +134,7 @@ public sealed class MeshAnimationAttachment : IMarshalable<MeshAnimationAttachme
     /// Gets the array that contains each texture coordinate channel that override a specific channel in the host mesh, by default all are lists of zero (but can be set to null).
     /// Each index in the array corresponds to the texture coordinate channel. The length of the array corresponds to Assimp's maximum UV channel limit.
     /// </summary>
-    public List<Vector3D>[] TextureCoordinateChannels { get; }
+    public List<Vector3>[] TextureCoordinateChannels { get; }
 
     /// <summary>
     /// Gets or sets the weight of the mesh animation.
@@ -160,7 +159,7 @@ public sealed class MeshAnimationAttachment : IMarshalable<MeshAnimationAttachme
             VertexColorChannels[i] = [];
         }
 
-        TextureCoordinateChannels = new List<Vector3D>[AiDefines.AI_MAX_NUMBER_OF_TEXTURECOORDS];
+        TextureCoordinateChannels = new List<Vector3>[AiDefines.AI_MAX_NUMBER_OF_TEXTURECOORDS];
 
         for(var i = 0; i < TextureCoordinateChannels.Length; i++)
         {
@@ -236,7 +235,7 @@ public sealed class MeshAnimationAttachment : IMarshalable<MeshAnimationAttachme
         }
     }
 
-    private Vector3D[] CopyTo(List<Vector3D> list, Vector3D[] copy)
+    private Vector3[] CopyTo(List<Vector3> list, Vector3[] copy)
     {
         list.CopyTo(copy);
 
@@ -255,33 +254,33 @@ public sealed class MeshAnimationAttachment : IMarshalable<MeshAnimationAttachme
     /// </summary>
     /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
     /// <param name="nativeValue">Output native value</param>
-    void IMarshalable<MeshAnimationAttachment, AiAnimMesh>.ToNative(nint thisPtr, out AiAnimMesh nativeValue)
+    unsafe void IMarshalable<MeshAnimationAttachment, AiAnimMesh>.ToNative(nint thisPtr, out AiAnimMesh nativeValue)
     {
-        nativeValue.Name = new(Name);
-        nativeValue.Vertices = nint.Zero;
-        nativeValue.Normals = nint.Zero;
-        nativeValue.Tangents = nint.Zero;
-        nativeValue.BiTangents = nint.Zero;
-        nativeValue.Colors = new();
-        nativeValue.TextureCoords = new();
-        nativeValue.NumVertices = (uint) VertexCount;
-        nativeValue.Weight = Weight;
+        nativeValue.MName = new(Name);
+        nativeValue.MVertices = null;
+        nativeValue.MNormals = null;
+        nativeValue.MTangents = null;
+        nativeValue.MBitangents = null;
+        nativeValue.MColors = new();
+        nativeValue.MTextureCoords = new();
+        nativeValue.MNumVertices = (uint) VertexCount;
+        nativeValue.MWeight = Weight;
 
         if(VertexCount > 0)
         {
 
             //Since we can have so many buffers of Vector3D with same length, lets re-use a buffer
-            var copy = new Vector3D[VertexCount];
+            var copy = new Vector3[VertexCount];
 
-            nativeValue.Vertices = MemoryHelper.ToNativeArray(CopyTo(Vertices, copy));
+            nativeValue.MVertices = MemoryHelper.ToNativeArray<Vector3>(CopyTo(Vertices, copy));
 
             if(HasNormals)
-                nativeValue.Normals = MemoryHelper.ToNativeArray(CopyTo(Normals, copy));
+                nativeValue.MNormals = MemoryHelper.ToNativeArray<Vector3>(CopyTo(Normals, copy));
 
             if(HasTangentBasis)
             {
-                nativeValue.Tangents = MemoryHelper.ToNativeArray(CopyTo(Tangents, copy));
-                nativeValue.BiTangents = MemoryHelper.ToNativeArray(CopyTo(BiTangents, copy));
+                nativeValue.MTangents = MemoryHelper.ToNativeArray<Vector3>(CopyTo(Tangents, copy));
+                nativeValue.MBitangents = MemoryHelper.ToNativeArray<Vector3>(CopyTo(BiTangents, copy));
             }
 
             //Vertex Color channels
@@ -291,11 +290,11 @@ public sealed class MeshAnimationAttachment : IMarshalable<MeshAnimationAttachme
 
                 if(list == null || list.Count == 0)
                 {
-                    nativeValue.Colors[i] = nint.Zero;
+                    nativeValue.MColors[i] = null;
                 }
                 else
                 {
-                    nativeValue.Colors[i] = MemoryHelper.ToNativeArray(list.ToArray());
+                    nativeValue.MColors[i] = (Vector4*)MemoryHelper.ToNativeArray<Color4D>(list.ToArray());
                 }
             }
 
@@ -306,11 +305,11 @@ public sealed class MeshAnimationAttachment : IMarshalable<MeshAnimationAttachme
 
                 if(list == null || list.Count == 0)
                 {
-                    nativeValue.TextureCoords[i] = nint.Zero;
+                    nativeValue.MTextureCoords[i] = null;
                 }
                 else
                 {
-                    nativeValue.TextureCoords[i] = MemoryHelper.ToNativeArray(CopyTo(list, copy));
+                    nativeValue.MTextureCoords[i] = MemoryHelper.ToNativeArray<Vector3>(CopyTo(list, copy));
                 }
             }
         }
@@ -320,46 +319,45 @@ public sealed class MeshAnimationAttachment : IMarshalable<MeshAnimationAttachme
     /// Reads the unmanaged data from the native value.
     /// </summary>
     /// <param name="nativeValue">Input native value</param>
-    void IMarshalable<MeshAnimationAttachment, AiAnimMesh>.FromNative(in AiAnimMesh nativeValue)
+    unsafe void IMarshalable<MeshAnimationAttachment, AiAnimMesh>.FromNative(in AiAnimMesh nativeValue)
     {
         ClearBuffers();
 
-        Name = AiString.GetString(nativeValue.Name); //Avoid struct copy
+        Name = nativeValue.MName; //Avoid struct copy
             
-        var vertexCount = (int) nativeValue.NumVertices;
-        Weight = nativeValue.Weight;
+        var vertexCount = (int) nativeValue.MNumVertices;
+        Weight = nativeValue.MWeight;
 
         if(vertexCount > 0)
         {
+            if(nativeValue.MVertices != null)
+                Vertices.AddRange(MemoryHelper.FromNativeArray(nativeValue.MVertices, vertexCount));
 
-            if(nativeValue.Vertices != nint.Zero)
-                Vertices.AddRange(MemoryHelper.FromNativeArray<Vector3D>(nativeValue.Vertices, vertexCount));
+            if(nativeValue.MNormals != null)
+                Normals.AddRange(MemoryHelper.FromNativeArray(nativeValue.MNormals, vertexCount));
 
-            if(nativeValue.Normals != nint.Zero)
-                Normals.AddRange(MemoryHelper.FromNativeArray<Vector3D>(nativeValue.Normals, vertexCount));
+            if(nativeValue.MTangents != null)
+                Tangents.AddRange(MemoryHelper.FromNativeArray(nativeValue.MTangents, vertexCount));
 
-            if(nativeValue.Tangents != nint.Zero)
-                Tangents.AddRange(MemoryHelper.FromNativeArray<Vector3D>(nativeValue.Tangents, vertexCount));
-
-            if(nativeValue.BiTangents != nint.Zero)
-                BiTangents.AddRange(MemoryHelper.FromNativeArray<Vector3D>(nativeValue.BiTangents, vertexCount));
+            if(nativeValue.MBitangents != null)
+                BiTangents.AddRange(MemoryHelper.FromNativeArray(nativeValue.MBitangents, vertexCount));
 
             //Vertex Color channels
-            for(var i = 0; i < nativeValue.Colors.Length; i++)
+            for(var i = 0; i < 8; i++)
             {
-                var colorPtr = nativeValue.Colors[i];
+                var colorPtr = nativeValue.MColors[i];
 
-                if(colorPtr != nint.Zero)
-                    VertexColorChannels[i].AddRange(MemoryHelper.FromNativeArray<Color4D>(colorPtr, vertexCount));
+                if(colorPtr != null)
+                    VertexColorChannels[i].AddRange(MemoryHelper.FromNativeArray((Color4D*)colorPtr, vertexCount));
             }
 
             //Texture coordinate channels
-            for(var i = 0; i < nativeValue.TextureCoords.Length; i++)
+            for(var i = 0; i < 8; i++)
             {
-                var texCoordsPtr = nativeValue.TextureCoords[i];
+                var texCoordsPtr = nativeValue.MTextureCoords[i];
 
-                if(texCoordsPtr != nint.Zero)
-                    TextureCoordinateChannels[i].AddRange(MemoryHelper.FromNativeArray<Vector3D>(texCoordsPtr, vertexCount));
+                if(texCoordsPtr != null)
+                    TextureCoordinateChannels[i].AddRange(MemoryHelper.FromNativeArray(texCoordsPtr, vertexCount));
             }
         }
     }
@@ -369,42 +367,42 @@ public sealed class MeshAnimationAttachment : IMarshalable<MeshAnimationAttachme
     /// </summary>
     /// <param name="nativeValue">Native value to free</param>
     /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-    public static void FreeNative(nint nativeValue, bool freeNative)
+    public static unsafe void FreeNative(nint nativeValue, bool freeNative)
     {
         if(nativeValue == nint.Zero)
             return;
 
         var aiAnimMesh = MemoryHelper.Read<AiAnimMesh>(nativeValue);
 
-        if(aiAnimMesh.NumVertices > 0)
+        if(aiAnimMesh.MNumVertices > 0)
         {
-            if(aiAnimMesh.Vertices != nint.Zero)
-                MemoryHelper.FreeMemory(aiAnimMesh.Vertices);
+            if(aiAnimMesh.MVertices != null)
+                MemoryHelper.FreeMemory(aiAnimMesh.MVertices);
 
-            if(aiAnimMesh.Normals != nint.Zero)
-                MemoryHelper.FreeMemory(aiAnimMesh.Normals);
+            if(aiAnimMesh.MNormals != null)
+                MemoryHelper.FreeMemory(aiAnimMesh.MNormals);
 
-            if(aiAnimMesh.Tangents != nint.Zero)
-                MemoryHelper.FreeMemory(aiAnimMesh.Tangents);
+            if(aiAnimMesh.MTangents != null)
+                MemoryHelper.FreeMemory(aiAnimMesh.MTangents);
 
-            if(aiAnimMesh.BiTangents != nint.Zero)
-                MemoryHelper.FreeMemory(aiAnimMesh.BiTangents);
+            if(aiAnimMesh.MBitangents != null)
+                MemoryHelper.FreeMemory(aiAnimMesh.MBitangents);
 
             //Vertex Color channels
-            for(var i = 0; i < aiAnimMesh.Colors.Length; i++)
+            for(var i = 0; i < 8; i++)
             {
-                var colorPtr = aiAnimMesh.Colors[i];
+                var colorPtr = aiAnimMesh.MColors[i];
 
-                if(colorPtr != nint.Zero)
+                if(colorPtr != null)
                     MemoryHelper.FreeMemory(colorPtr);
             }
 
             //Texture coordinate channels
-            for(var i = 0; i < aiAnimMesh.TextureCoords.Length; i++)
+            for(var i = 0; i < 8; i++)
             {
-                var texCoordsPtr = aiAnimMesh.TextureCoords[i];
+                var texCoordsPtr = aiAnimMesh.MTextureCoords[i];
 
-                if(texCoordsPtr != nint.Zero)
+                if(texCoordsPtr != null)
                     MemoryHelper.FreeMemory(texCoordsPtr);
             }
         }

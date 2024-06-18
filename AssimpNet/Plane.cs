@@ -20,8 +20,6 @@
 * THE SOFTWARE.
 */
 
-using System.Runtime.InteropServices;
-
 namespace Assimp;
 
 /// <summary>

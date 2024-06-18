@@ -20,9 +20,6 @@
 * THE SOFTWARE.
 */
 
-using System.Collections.Generic;
-using Assimp.Unmanaged;
-
 namespace Assimp;
 
 /// <summary>
@@ -76,27 +73,27 @@ public sealed class MeshAnimationChannel : IMarshalable<MeshAnimationChannel, Ai
     /// </summary>
     /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
     /// <param name="nativeValue">Output native value</param>
-    void IMarshalable<MeshAnimationChannel, AiMeshAnim>.ToNative(nint thisPtr, out AiMeshAnim nativeValue)
+    unsafe void IMarshalable<MeshAnimationChannel, AiMeshAnim>.ToNative(nint thisPtr, out AiMeshAnim nativeValue)
     {
-        nativeValue.Name = new(MeshName);
-        nativeValue.NumKeys = (uint) MeshKeyCount;
-        nativeValue.Keys = nint.Zero;
+        nativeValue.MName = new(MeshName);
+        nativeValue.MNumKeys = (uint) MeshKeyCount;
+        nativeValue.MKeys = null;
 
-        if(nativeValue.NumKeys > 0)
-            nativeValue.Keys = MemoryHelper.ToNativeArray(MeshKeys.ToArray());
+        if(nativeValue.MNumKeys > 0)
+            nativeValue.MKeys = (Silk.NET.Assimp.MeshKey*)MemoryHelper.ToNativeArray<MeshKey>(MeshKeys.ToArray());
     }
 
     /// <summary>
     /// Reads the unmanaged data from the native value.
     /// </summary>
     /// <param name="nativeValue">Input native value</param>
-    void IMarshalable<MeshAnimationChannel, AiMeshAnim>.FromNative(in AiMeshAnim nativeValue)
+    unsafe void IMarshalable<MeshAnimationChannel, AiMeshAnim>.FromNative(in AiMeshAnim nativeValue)
     {
-        MeshName = AiString.GetString(nativeValue.Name); //Avoid struct copy
+        MeshName = nativeValue.MName; //Avoid struct copy
         MeshKeys.Clear();
 
-        if(nativeValue.NumKeys > 0 && nativeValue.Keys != nint.Zero)
-            MeshKeys.AddRange(MemoryHelper.FromNativeArray<MeshKey>(nativeValue.Keys, (int) nativeValue.NumKeys));
+        if(nativeValue.MNumKeys > 0 && nativeValue.MKeys != null)
+            MeshKeys.AddRange(MemoryHelper.FromNativeArray((MeshKey*)nativeValue.MKeys, (int) nativeValue.MNumKeys));
     }
 
     /// <summary>
@@ -104,15 +101,15 @@ public sealed class MeshAnimationChannel : IMarshalable<MeshAnimationChannel, Ai
     /// </summary>
     /// <param name="nativeValue">Native value to free</param>
     /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-    public static void FreeNative(nint nativeValue, bool freeNative)
+    public static unsafe void FreeNative(nint nativeValue, bool freeNative)
     {
         if(nativeValue == nint.Zero)
             return;
 
         var aiMeshAnim = MemoryHelper.Read<AiMeshAnim>(nativeValue);
 
-        if(aiMeshAnim.NumKeys > 0 && aiMeshAnim.Keys != nint.Zero)
-            MemoryHelper.FreeMemory(aiMeshAnim.Keys);
+        if(aiMeshAnim.MNumKeys > 0 && aiMeshAnim.MKeys != null)
+            MemoryHelper.FreeMemory(aiMeshAnim.MKeys);
 
         if(freeNative)
             MemoryHelper.FreeMemory(nativeValue);

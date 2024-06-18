@@ -1,42 +1,41 @@
 ﻿/*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
 using System.Collections;
-using System.Collections.Generic;
 
 namespace Assimp;
 
 /// <summary>
-/// A collection of child nodes owned by a parent node. Manages access to the collection while maintaing parent-child linkage.
+/// A collection of child nodes owned by a parent node. Manages access to the collection while maintaining parent-child linkage.
 /// </summary>
 public sealed class NodeCollection : IList<Node>
 {
-    private readonly Node m_parent;
-    private readonly List<Node> m_children;
+    private readonly Node _parent;
+    private readonly List<Node> _children;
 
     /// <summary>
     /// Gets the number of elements contained in the <see cref="T:System.Collections.Generic.ICollection`1" />.
     /// </summary>
-    public int Count => m_children.Count;
+    public int Count => _children.Count;
 
     /// <summary>
     /// Gets or sets the element at the specified index.
@@ -49,15 +48,15 @@ public sealed class NodeCollection : IList<Node>
             if(index < 0 || index > Count)
                 return null;
 
-            return m_children[index];
+            return _children[index];
         }
         set
         {
             if(index < 0 || index > Count || value == null)
                 return;
 
-            m_children[index] = value;
-            value.SetParent(m_parent);
+            _children[index] = value;
+            value.SetParent(_parent);
         }
     }
 
@@ -73,8 +72,8 @@ public sealed class NodeCollection : IList<Node>
     /// <param name="parent">Parent node</param>
     internal NodeCollection(Node parent)
     {
-        m_parent = parent;
-        m_children = [];
+        _parent = parent;
+        _children = [];
     }
 
     /// <summary>
@@ -85,8 +84,8 @@ public sealed class NodeCollection : IList<Node>
     {
         if(item != null)
         {
-            m_children.Add(item);
-            item.SetParent(m_parent);
+            _children.Add(item);
+            item.SetParent(_parent);
         }
     }
 
@@ -103,8 +102,8 @@ public sealed class NodeCollection : IList<Node>
         {
             if(child != null)
             {
-                m_children.Add(child);
-                child.SetParent(m_parent);
+                _children.Add(child);
+                child.SetParent(_parent);
             }
         }
     }
@@ -114,12 +113,12 @@ public sealed class NodeCollection : IList<Node>
     /// </summary>
     public void Clear()
     {
-        foreach(var node in m_children)
+        foreach(var node in _children)
         {
             node.SetParent(null);
         }
 
-        m_children.Clear();
+        _children.Clear();
     }
 
 
@@ -132,7 +131,7 @@ public sealed class NodeCollection : IList<Node>
     /// </returns>
     public bool Contains(Node item)
     {
-        return m_children.Contains(item);
+        return _children.Contains(item);
     }
 
     /// <summary>
@@ -142,7 +141,7 @@ public sealed class NodeCollection : IList<Node>
     /// <param name="arrayIndex">Index of the array to start copying.</param>
     public void CopyTo(Node[] array, int arrayIndex)
     {
-        m_children.CopyTo(array, arrayIndex);
+        _children.CopyTo(array, arrayIndex);
     }
 
     /// <summary>
@@ -154,7 +153,7 @@ public sealed class NodeCollection : IList<Node>
     /// </returns>
     public int IndexOf(Node item)
     {
-        return m_children.IndexOf(item);
+        return _children.IndexOf(item);
     }
 
     /// <summary>
@@ -167,8 +166,8 @@ public sealed class NodeCollection : IList<Node>
         if(index < 0 || index > Count || item == null)
             return;
 
-        m_children.Insert(index, item);
-        item.SetParent(m_parent);
+        _children.Insert(index, item);
+        item.SetParent(_parent);
     }
 
     /// <summary>
@@ -182,7 +181,7 @@ public sealed class NodeCollection : IList<Node>
         if(child == null)
         {
             child.SetParent(null);
-            m_children.RemoveAt(index);
+            _children.RemoveAt(index);
         }
     }
 
@@ -195,7 +194,7 @@ public sealed class NodeCollection : IList<Node>
     /// </returns>
     public bool Remove(Node item)
     {
-        if(item != null && m_children.Remove(item))
+        if(item != null && _children.Remove(item))
         {
             item.SetParent(null);
             return true;
@@ -210,7 +209,7 @@ public sealed class NodeCollection : IList<Node>
     /// <returns>Array of copied elements</returns>
     public Node[] ToArray()
     {
-        return m_children.ToArray();
+        return _children.ToArray();
     }
 
     /// <summary>
@@ -219,7 +218,7 @@ public sealed class NodeCollection : IList<Node>
     /// <returns>A <see cref="T:System.Collections.Generic.IEnumerator`1" /> that can be used to iterate through the collection.</returns>
     public IEnumerator<Node> GetEnumerator()
     {
-        return m_children.GetEnumerator();
+        return _children.GetEnumerator();
     }
 
     /// <summary>
@@ -228,6 +227,6 @@ public sealed class NodeCollection : IList<Node>
     /// <returns>An <see cref="T:System.Collections.IEnumerator" /> object that can be used to iterate through the collection.</returns>
     IEnumerator IEnumerable.GetEnumerator()
     {
-        return m_children.GetEnumerator();
+        return _children.GetEnumerator();
     }
 }

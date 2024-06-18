@@ -1,27 +1,26 @@
 ﻿/*
-* Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
-* 
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-* 
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-* 
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-* THE SOFTWARE.
-*/
+ * Copyright (c) 2012-2020 AssimpNet - Nicholas Woodfield
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-using System.Collections.Generic;
-using Assimp.Unmanaged;
+using System.Linq;
 
 namespace Assimp;
 
@@ -83,25 +82,25 @@ public sealed class Face : IMarshalable<Face, AiFace>
     /// </summary>
     /// <param name="thisPtr">Optional pointer to the memory that will hold the native value.</param>
     /// <param name="nativeValue">Output native value</param>
-    void IMarshalable<Face, AiFace>.ToNative(nint thisPtr, out AiFace nativeValue)
+    unsafe void IMarshalable<Face, AiFace>.ToNative(nint thisPtr, out AiFace nativeValue)
     {
-        nativeValue.NumIndices = (uint) IndexCount;
-        nativeValue.Indices = nint.Zero;
+        nativeValue.MNumIndices = (uint) IndexCount;
+        nativeValue.MIndices = null;
 
-        if(nativeValue.NumIndices > 0)
-            nativeValue.Indices = MemoryHelper.ToNativeArray(Indices.ToArray());
+        if(nativeValue.MNumIndices > 0)
+            nativeValue.MIndices = MemoryHelper.ToNativeArray<uint>(Indices.Select(i => (uint)i).ToArray()); //TODO: Span cast
     }
 
     /// <summary>
     /// Reads the unmanaged data from the native value.
     /// </summary>
     /// <param name="nativeValue">Input native value</param>
-    void IMarshalable<Face, AiFace>.FromNative(in AiFace nativeValue)
+    unsafe void IMarshalable<Face, AiFace>.FromNative(in AiFace nativeValue)
     {
         Indices.Clear();
 
-        if(nativeValue.NumIndices > 0 && nativeValue.Indices != nint.Zero)
-            Indices.AddRange(MemoryHelper.FromNativeArray<int>(nativeValue.Indices, (int) nativeValue.NumIndices));
+        if(nativeValue.MNumIndices > 0 && nativeValue.MIndices != null)
+            Indices.AddRange(MemoryHelper.FromNativeArray(nativeValue.MIndices, (int) nativeValue.MNumIndices).Select(i => (int)i));
     }
 
     /// <summary>
@@ -109,15 +108,15 @@ public sealed class Face : IMarshalable<Face, AiFace>
     /// </summary>
     /// <param name="nativeValue">Native value to free</param>
     /// <param name="freeNative">True if the unmanaged memory should be freed, false otherwise.</param>
-    public static void FreeNative(nint nativeValue, bool freeNative)
+    public static unsafe void FreeNative(nint nativeValue, bool freeNative)
     {
         if(nativeValue == nint.Zero)
             return;
 
         var aiFace = MemoryHelper.Read<AiFace>(nativeValue);
 
-        if(aiFace.NumIndices > 0 && aiFace.Indices != nint.Zero)
-            MemoryHelper.FreeMemory(aiFace.Indices);
+        if(aiFace.MNumIndices > 0 && aiFace.MIndices != null)
+            MemoryHelper.FreeMemory(aiFace.MIndices);
 
         if(freeNative)
             MemoryHelper.FreeMemory(nativeValue);
