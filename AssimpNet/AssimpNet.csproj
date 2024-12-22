@@ -37,8 +37,8 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="Silk.NET.Assimp" Version="2.21.0" />
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+    <PackageReference Include="Silk.NET.Assimp" Version="2.22.0" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.0" />
     <PackageReference Include="StirlingLabs.assimp.native.linux-x64" Version="5.2.5.4" />
     <PackageReference Include="StirlingLabs.assimp.native.osx" Version="5.2.5.4" />
     <PackageReference Include="StirlingLabs.assimp.native.win-x64" Version="5.2.5.4" />
